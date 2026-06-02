@@ -337,12 +337,13 @@ const styles = StyleSheet.create({
   },
   limitGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
   },
   limitButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 50,
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 10,
@@ -353,11 +354,13 @@ const styles = StyleSheet.create({
   },
   difficultyRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     marginBottom: 12,
   },
   difficultyButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 80,
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 10,

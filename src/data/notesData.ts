@@ -16,7 +16,7 @@ export interface NoteTopic {
 }
 
 export interface SubjectNotebook {
-  subject: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics';
+  subject: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics' | 'Islamiat';
   iconName: string;
   description: string;
   topics: NoteTopic[];
@@ -105,28 +105,114 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
     topics: [
       {
         id: 'gk-note-1',
-        title: 'United Nations Orgs & Headquarters',
+        title: 'United Nations (UN) Overview',
         importance: 'critical',
         estimatedReadTime: 6,
-        overview: 'GK papers frequently inquire about international headquarters, establishment dates, and current chief names.',
+        overview: 'Comprehensive GK study guide regarding the UN structure, principal organs, veto power, and member states.',
         keyPoints: [
-          'Geneva, Switzerland hosts key global watchdogs and health bodies because of Swiss neutrality.',
-          'New York holds the primary UN General Assembly and Security Council divisions.',
-          'The International Court of Justice (ICJ) is the only principal organ of the UN situated outside New York.'
+          'Founded: 24 October 1945 (celebrated as UN Day; Charter signed 26 June 1945 in San Francisco).',
+          'Headquarters: New York City, USA. Replaced the failed League of Nations (1919-1946).',
+          'Members: 193 member states, with 51 founding members.',
+          'Secretaries-General: Trygve Lie (first; Norway), António Guterres (current; Portugal).',
+          'Security Council: 15 members, with 5 permanent (P5: USA, UK, France, Russia, China) having veto power and 10 non-permanent elected for 2-year terms.',
+          'Six Organs: General Assembly, Security Council, Secretariat, ICJ (located in The Hague, Netherlands), ECOSOC, and Trusteeship Council.'
         ],
         tables: [
           {
-            headers: ['Organization', 'Headquarters City', 'Country', 'Establishment Year'],
+            headers: ['UN Agency', 'Full Name', 'Headquarters City', 'Country'],
             rows: [
-              ['World Health Organization (WHO)', 'Geneva', 'Switzerland', '1948'],
-              ['UNESCO', 'Paris', 'France', '1945'],
-              ['International Court of Justice (ICJ)', 'The Hague', 'Netherlands', '1945'],
-              ['International Monetary Fund (IMF)', 'Washington D.C.', 'United States', '1944'],
-              ['UNICEF', 'New York', 'United States', '1946']
+              ['WHO', 'World Health Organization', 'Geneva', 'Switzerland'],
+              ['UNESCO', 'UN Educational, Scientific & Cultural Org', 'Paris', 'France'],
+              ['UNICEF', 'UN Children\'s Fund', 'New York', 'USA'],
+              ['UNHCR', 'UN High Commissioner for Refugees', 'Geneva', 'Switzerland'],
+              ['FAO', 'Food & Agriculture Organization', 'Rome', 'Italy'],
+              ['ILO', 'International Labour Organization', 'Geneva', 'Switzerland'],
+              ['IAEA', 'International Atomic Energy Agency', 'Vienna', 'Austria'],
+              ['WFP', 'World Food Programme', 'Rome', 'Italy']
             ]
           }
         ],
-        content: 'Pro Tip: If an organization begins with "World" and ends with "Organization" (WHO, WTO, WIPO, WMO), it is almost always headquartered in Geneva.'
+        content: 'Key Treaties: Universal Declaration of Human Rights (UDHR) adopted 10 December 1948; NPT opened for signature in 1968; Kyoto Protocol (1997); Paris Agreement (2015); SDGs (17 goals, 2015-2030) replacing MDGs (8 goals, 2000-2015). Pakistan joined the UN on September 30, 1947.'
+      },
+      {
+        id: 'gk-note-2',
+        title: 'Organisation of Islamic Cooperation (OIC)',
+        importance: 'critical',
+        estimatedReadTime: 5,
+        overview: 'An examination-critical breakdown of the OIC, the second largest intergovernmental body after the UN.',
+        keyPoints: [
+          'Founded: 25 September 1969 at Rabat, Morocco (25 founding members).',
+          'HQ: Jeddah, Saudi Arabia. Old Name: Organisation of the Islamic Conference (changed to Cooperation in 2011).',
+          'Members: 57 member states representing the collective voice of the Muslim world.',
+          'Formation Trigger: Arson attack on Al-Aqsa Mosque in Jerusalem on 21 August 1969.',
+          'Governing Body: Islamic Summit (meets every 3 years) and Council of Foreign Ministers (meets annually).',
+          'Secretary-General: Hissein Brahim Taha (Chad) since Jan 2022. Pakistan\'s Syed Sharifuddin Pirzada served as SG from 1985-1988.'
+        ],
+        content: 'Pakistan hosted the historic 2nd OIC Summit in Lahore in 1974 where Bangladesh was formally recognized. There are 5 Observer States: Russia, Bosnia-Herzegovina, Thailand, Central African Republic, and Turkish Cypriots.'
+      },
+      {
+        id: 'gk-note-3',
+        title: 'South Asian Association for Regional Cooperation (SAARC)',
+        importance: 'high',
+        estimatedReadTime: 5,
+        overview: 'Key operational details, treaties, and member states of the South Asian regional bloc.',
+        keyPoints: [
+          'Founded: 8 December 1985 in Dhaka, Bangladesh. Idea proposed by President Ziaur Rahman in 1980.',
+          'HQ: Kathmandu, Nepal. SAARC Secretariat opened on 16 January 1987.',
+          'Members: 8 member states (Afghanistan joined as 8th member in 2007).',
+          'Guiding Principles: Non-interference in internal affairs, decisions by unanimity, bilateral disputes are excluded.',
+          'SAFTA: South Asian Free Trade Area signed Jan 2004, effective July 2006.',
+          'Summits in Pakistan: 4th (1988), 12th (2004), and 19th (2016 - stalled due to India-Pak tensions).'
+        ],
+        content: 'Mnemonic to memorize members: "All Big Bhutan India Maldives Nepal Pakistan Sri Lanka" (A-B-B-I-M-N-P-S). SAARC houses the Cultural Centre in Colombo, Sri Lanka and the Agricultural Centre in Dhaka, Bangladesh.'
+      },
+      {
+        id: 'gk-note-4',
+        title: 'North Atlantic Treaty Organization (NATO)',
+        importance: 'high',
+        estimatedReadTime: 5,
+        overview: 'Operational details, founding members, and critical treaty articles of the military alliance.',
+        keyPoints: [
+          'Founded: 4 April 1949 via the Washington Treaty (signed in Washington D.C.).',
+          'HQ: Brussels, Belgium (since 1967). Original HQ was London (1949-1952) and Paris (1952-1967).',
+          'Members: 32 member states. Finland (April 4, 2023) and Sweden (March 7, 2024) are the newest members.',
+          'Secretary-General: Mark Rutte (Netherlands) since Oct 2024 (previously Jens Stoltenberg 2014-2024).',
+          'Article 5: Collective defense clause — an attack on one member is an attack on all (only invoked after 9/11).',
+          'Counterpart: Warsaw Pact (Soviet-led military alliance, 1955-1991).'
+        ],
+        content: 'NATO-led operations include Operation Allied Force (Yugoslavia, 1999) and Operation Enduring Freedom (Afghanistan, 2001). Pakistan is not a member of NATO but cooperated as a non-member partner (Major Non-NATO Ally).'
+      },
+      {
+        id: 'gk-note-5',
+        title: 'World Trade Organization (WTO)',
+        importance: 'high',
+        estimatedReadTime: 5,
+        overview: 'Understanding global trade regulations, transition from GATT, and binding dispute settlements.',
+        keyPoints: [
+          'Founded: 1 January 1995. Created by the Marrakesh Agreement signed in Marrakesh, Morocco on April 15, 1994.',
+          'HQ: Geneva, Switzerland. Replaced the General Agreement on Tariffs and Trade (GATT, 1947).',
+          'Members: 164+ member states. Pakistan is a founding member since Jan 1, 1995.',
+          'Head Title: Director-General. Current DG: Ngozi Okonjo-Iweala (Nigeria) — first female and first African to head WTO (2021).',
+          'Strongest Mechanism: Binding dispute settlement rulings.',
+          'TRIPS: Trade-Related Intellectual Property Rights agreement.'
+        ],
+        content: 'Key Principles: MFN (Most Favoured Nation) - equal treatment; National Treatment - no domestic discrimination; Free Trade; Predictability; and Fair Competition. Key Rounds: Geneva (1947), Kennedy (1964-1967), Uruguay (1986-1994, created WTO), and Doha (2001-ongoing).'
+      },
+      {
+        id: 'gk-note-6',
+        title: 'IMF & World Bank (Bretton Woods Institutions)',
+        importance: 'critical',
+        estimatedReadTime: 6,
+        overview: 'Comparative study of the twin Bretton Woods organizations established in 1944.',
+        keyPoints: [
+          'Conceived: July 1944 at the Bretton Woods Conference, New Hampshire, USA (44 allied nations participated).',
+          'IMF HQ: Washington D.C., USA. Head Title: Managing Director (Kristalina Georgieva since Oct 2019).',
+          'World Bank HQ: Washington D.C., USA. Head Title: President (Ajay Banga since June 2, 2023).',
+          'SDR (Special Drawing Rights): IMF\'s reserve asset created in 1969 (basket of USD, EUR, CNY, JPY, GBP).',
+          'World Bank Arms: 5 institutions (IBRD, IDA - grants to poorest, IFC - private sector, MIGA, ICSID - disputes).',
+          'Key Difference: IMF focuses on monetary stability/short-term loans; World Bank focuses on developmental projects/long-term loans.'
+        ],
+        content: 'By convention, the IMF Managing Director is always European and the World Bank President is always an American citizen. Pakistan has received multiple IMF bailout programs (typically Extended Fund Facility (EFF) or Stand-By Arrangement (SBA)) and remains a frequent borrower.'
       }
     ]
   },

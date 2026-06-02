@@ -12,7 +12,7 @@ import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUBJECT_NOTEBOOKS, NoteTopic, SubjectNotebook } from '../../src/data/notesData';
 import { useApp } from '../../src/context/AppContext';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   BookOpen,
   Calculator,
@@ -93,6 +93,16 @@ export default function NotesScreen() {
     };
     loadProgress();
   }, []);
+
+  const params = useLocalSearchParams();
+  useEffect(() => {
+    if (params?.focusTopicId) {
+      setSelectedTopicId(params.focusTopicId as string);
+      if (params?.subject) {
+        setActiveSubject(params.subject as any);
+      }
+    }
+  }, [params]);
 
   // Save completed notes progress
   const saveCompletedProgress = async (updated: string[]) => {
@@ -382,9 +392,6 @@ export default function NotesScreen() {
               {activeNotebook.topics.map((topic) => {
                 const isOpen = selectedTopicId === topic.id;
                 const isCompleted = completedTopicIds.includes(topic.id);
-                const allPointsChecked = topic.keyPoints.every(
-                  (_, i) => checkedPoints[`${topic.id}-pt-${i}`]
-                );
 
                 return (
                   <View key={topic.id} style={[styles.topicWrapper, dynamicStyles.card]}>
@@ -436,11 +443,6 @@ export default function NotesScreen() {
                         </View>
 
                         <Text style={[styles.topicTitleText, dynamicStyles.text]}>{topic.title}</Text>
-                        {allPointsChecked && (
-                          <Text style={{ fontSize: 12, color: colors.success, marginTop: 4, fontWeight: '600' }}>
-                            ✓ All points reviewed
-                          </Text>
-                        )}
                       </View>
 
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -572,62 +574,69 @@ function TopicDetails({
             <Text style={[styles.overviewText, { color: colors.text, lineHeight: 22 }]}>{topic.overview}</Text>
           </View>
 
-          {/* Key Points Checklist - Improved */}
+          {/* Key Points - Styled Reading View */}
           <View style={[styles.checklistCard, { backgroundColor: isDark ? '#18181b' : '#f9fafb', borderColor: colors.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <Sparkles size={18} color={colors.primary} />
-              <Text style={[styles.checklistHeader, { color: colors.text, fontSize: 16 }]}>
+              <Text style={[styles.checklistHeader, { color: colors.text, fontSize: 16, fontWeight: '700' }]}>
                 Key Points
-              </Text>
-              <View style={{ flex: 1 }} />
-              <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: '500' }}>
-                {topic.keyPoints.filter((_, i) => checkedPoints[`${topic.id}-pt-${i}`]).length}/{topic.keyPoints.length}
               </Text>
             </View>
 
             <View style={styles.checklistItems}>
               {topic.keyPoints.map((pt, i) => {
-                const itemKey = `${topic.id}-pt-${i}`;
-                const isPointChecked = !!checkedPoints[itemKey];
+                const colonIndex = pt.indexOf(':');
+                const hasTitle = colonIndex !== -1;
+                const title = hasTitle ? pt.substring(0, colonIndex).trim() : '';
+                const detail = hasTitle ? pt.substring(colonIndex + 1).trim() : pt;
 
                 return (
-                  <TouchableOpacity
+                  <View
                     key={i}
-                    onPress={() => toggleLineItem(itemKey)}
                     style={[
                       styles.checkItemRow,
                       {
-                        backgroundColor: isPointChecked ? (isDark ? '#1f2937' : '#ecfdf5') : 'transparent',
-                        borderRadius: 10,
-                        padding: 10,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
                       },
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.pointCheckbox,
-                        {
-                          backgroundColor: isPointChecked ? colors.success : 'transparent',
-                          borderColor: isPointChecked ? colors.success : colors.borderAccent,
-                        },
-                      ]}
-                    >
-                      {isPointChecked && <Check size={10} color="#fff" />}
-                    </View>
-                    <Text
-                      style={[
-                        styles.checkItemText,
-                        {
+                    {/* Purple dot on left */}
+                    <View style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: colors.primary,
+                      marginTop: 6,
+                      marginRight: 12,
+                      shadowColor: colors.primary,
+                      shadowOpacity: 0.5,
+                      shadowRadius: 3,
+                      elevation: 2,
+                    }} />
+                    
+                    <View style={{ flex: 1 }}>
+                      {hasTitle && (
+                        <Text style={{
+                          fontSize: 14,
+                          fontWeight: '700',
                           color: colors.text,
-                          textDecorationLine: isPointChecked ? 'line-through' : 'none',
-                          opacity: isPointChecked ? 0.6 : 1,
-                          lineHeight: 20,
-                        },
-                      ]}
-                    >
-                      {pt}
-                    </Text>
-                  </TouchableOpacity>
+                          marginBottom: 3,
+                        }}>
+                          {title}
+                        </Text>
+                      )}
+                      <Text style={{
+                        fontSize: 13,
+                        color: colors.textMuted,
+                        lineHeight: 19,
+                      }}>
+                        {detail}
+                      </Text>
+                    </View>
+                  </View>
                 );
               })}
             </View>
@@ -676,38 +685,46 @@ function TopicDetails({
                 </Text>
               </View>
               {topic.tables.map((table, tIdx) => (
-                <View key={tIdx} style={[styles.tableBorder, { borderColor: colors.border }]}>
-                  {/* Header Row */}
-                  <View style={[styles.tableHeaderRow, { backgroundColor: isDark ? '#27272a' : '#e5e7eb' }]}>
-                    {table.headers.map((h, hIdx) => (
-                      <View key={hIdx} style={styles.tableHeaderCol}>
-                        <Text style={[styles.tableHeaderCellText, { color: colors.text, fontSize: 12, fontWeight: '700' }]}>{h}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Rows */}
-                  {table.rows.map((row, rIdx) => (
-                    <View
-                      key={rIdx}
-                      style={[
-                        styles.tableRow,
-                        {
-                          backgroundColor:
-                            rIdx % 2 === 1 ? (isDark ? '#18181b' : '#f9fafb') : isDark ? '#121214' : '#ffffff',
-                          borderBottomColor: colors.border,
-                          borderBottomWidth: rIdx < table.rows.length - 1 ? 1 : 0,
-                        },
-                      ]}
-                    >
-                      {row.map((val, colIdx) => (
-                        <View key={colIdx} style={styles.tableCol}>
-                          <Text style={[styles.tableCellText, { color: colors.text, fontSize: 13 }]}>{val}</Text>
+                <ScrollView
+                  key={tIdx}
+                  horizontal
+                  showsHorizontalScrollIndicator={true}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  style={{ borderRadius: 12, marginBottom: 12 }}
+                >
+                  <View style={[styles.tableBorder, { borderColor: colors.border, minWidth: Math.max(300, table.headers.length * 115) }]}>
+                    {/* Header Row */}
+                    <View style={[styles.tableHeaderRow, { backgroundColor: isDark ? '#27272a' : '#e5e7eb' }]}>
+                      {table.headers.map((h, hIdx) => (
+                        <View key={hIdx} style={styles.tableHeaderCol}>
+                          <Text style={[styles.tableHeaderCellText, { color: colors.text, fontSize: 12, fontWeight: '700' }]}>{h}</Text>
                         </View>
                       ))}
                     </View>
-                  ))}
-                </View>
+
+                    {/* Rows */}
+                    {table.rows.map((row, rIdx) => (
+                      <View
+                        key={rIdx}
+                        style={[
+                          styles.tableRow,
+                          {
+                            backgroundColor:
+                              rIdx % 2 === 1 ? (isDark ? '#18181b' : '#f9fafb') : isDark ? '#121214' : '#ffffff',
+                            borderBottomColor: colors.border,
+                            borderBottomWidth: rIdx < table.rows.length - 1 ? 1 : 0,
+                          },
+                        ]}
+                      >
+                        {row.map((val, colIdx) => (
+                          <View key={colIdx} style={styles.tableCol}>
+                            <Text style={[styles.tableCellText, { color: colors.text, fontSize: 13 }]}>{val}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
               ))}
             </View>
           )}

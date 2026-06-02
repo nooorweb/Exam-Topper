@@ -668,13 +668,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   progressTitle: {
-    fontSize: 10.5,
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   progressSubtitle: {
-    fontSize: 9.5,
     fontSize: 13,
     marginTop: 2,
   },
@@ -691,7 +689,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressPercentText: {
-    fontSize: 11,
     fontSize: 14,
     fontWeight: 'bold',
   },

@@ -9,7 +9,7 @@ export interface MCQ {
   options: string[];
   correctAnswer: number; // 0 for A, 1 for B, 2 for C, 3 for D
   explanation: string;
-  category: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics';
+  category: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics' | 'Islamiat';
   subcategory?: string;
   examType?: string; // e.g. "KPPSC Past Paper 2023", "ETEA 2022", "FIA 2021"
   isRepeated?: boolean;

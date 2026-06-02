@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   ScrollView,
   View,
@@ -9,6 +9,7 @@ import {
   Share,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useApp } from '../../src/context/AppContext';
 import {
@@ -24,24 +25,83 @@ import {
   Shield,
   Wifi,
   WifiOff,
+  Image as ImageIcon,
+  Monitor,
+  Smartphone,
+  ChevronRight,
 } from 'lucide-react-native';
-import { router } from 'expo-router';
-import { ProfileStats } from '../../src/components/ProfileStats';
+import { router, useFocusEffect } from 'expo-router';
+import ViewShot, { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
+import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
+import { triggerWebDownload, GRADIENTS } from '../../src/lib/wallpaperUtils';
+import { SUBJECT_NOTEBOOKS } from '../../src/data/notesData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DashboardScreen() {
   const {
     stats,
     vocab,
+    mcqs,
     currentTheme,
     daySeed,
     autoDownloadWallpaper,
     setAutoDownloadWallpaper,
     user,
+    isNewDayDetected,
+    setIsNewDayDetected,
   } = useApp();
 
   const isDark = currentTheme === 'dark';
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [simulatedOffline, setSimulatedOffline] = useState(false);
+  const [completedTopicIds, setCompletedTopicIds] = useState<string[]>([]);
+
+  // Load completed note topics on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+      const loadCompleted = async () => {
+        try {
+          const saved = await AsyncStorage.getItem('smart_prep_completed_notes');
+          if (saved && isMounted) {
+            setCompletedTopicIds(JSON.parse(saved));
+          }
+        } catch (_) {}
+      };
+      loadCompleted();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
+
+  // Compute today's focus topic based on daySeed
+  const todayFocusTopic = useMemo(() => {
+    const allTopics: { topic: any; subject: string }[] = [];
+    SUBJECT_NOTEBOOKS.forEach(notebook => {
+      notebook.topics.forEach(topic => {
+        allTopics.push({ topic, subject: notebook.subject });
+      });
+    });
+    if (allTopics.length === 0) return null;
+    const idx = daySeed % allTopics.length;
+    return allTopics[idx];
+  }, [daySeed]);
+
+  // Compute progress for each subject
+  const subjectProgress = useMemo(() => {
+    const progress: Record<string, { completed: number; total: number; percent: number }> = {};
+    SUBJECT_NOTEBOOKS.forEach(notebook => {
+      const sub = notebook.subject;
+      const topics = notebook.topics;
+      const total = topics.length;
+      const completed = topics.filter(t => completedTopicIds.includes(t.id)).length;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      progress[sub] = { completed, total, percent };
+    });
+    return progress;
+  }, [completedTopicIds]);
 
   const colors = {
     bg: isDark ? '#09090b' : '#f9fafb',
@@ -101,25 +161,85 @@ export default function DashboardScreen() {
     });
   };
 
-  // Mock Lockscreen Save/Share functionality
-  const handleSaveWallpaper = async () => {
-    const textContent = `SMART PREP DAILY MEMORY LOCKSCREEN\nDate: ${new Date().toDateString()}\n\n` +
-      todayDraftWords.map((w, i) => `${i + 1}. ${w.word.toUpperCase()} (${w.category || 'Vocab'})\nMeaning: ${w.meaning}\nUrdu: ${w.urduMeaning || 'N/A'}`).join('\n\n');
+  // Compile today's 2 deterministic wallpaper vocabulary words
+  const todayWallpaperWords = useMemo(() => {
+    const englishWords = vocab.filter(w => w.category !== 'Exam Acronym' && w.id.startsWith('vocab'));
+    if (englishWords.length === 0) {
+      return vocab.slice(0, 2);
+    }
+    const selected = [];
+    for (let i = 0; i < 2; i++) {
+      const idx = (daySeed + i) % englishWords.length;
+      selected.push(englishWords[idx]);
+    }
+    return selected.filter(Boolean);
+  }, [vocab, daySeed]);
 
+  const [isQuickDownloading, setIsQuickDownloading] = useState(false);
+  const quickDownloadRef = useRef<ViewShot>(null);
+
+  const handleQuickDownload = async () => {
     if (Platform.OS === 'web') {
-      showToast("Lockscreen generated! Text copied to memory clipboard.");
-      navigator.clipboard.writeText(textContent);
+      setIsQuickDownloading(true);
+      const success = triggerWebDownload(todayWallpaperWords, 0, 'sans-serif', true, true, 'mobile');
+      setIsQuickDownloading(false);
+      if (success) {
+        showToast("Mobile Lockscreen Wallpaper downloaded! 📱");
+      }
     } else {
+      setIsQuickDownloading(true);
       try {
-        await Share.share({
-          message: textContent,
-          title: 'Daily Study Lockscreen Contents',
-        });
-      } catch (error) {
-        Alert.alert('Sharing Error', 'Failed to share wallpaper text.');
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permission Required',
+            'We need access to your photos to save the daily wallpaper.'
+          );
+          setIsQuickDownloading(false);
+          return;
+        }
+
+        if (quickDownloadRef.current) {
+          const uri = await captureRef(quickDownloadRef, {
+            format: 'png',
+            quality: 1.0,
+          });
+          await MediaLibrary.saveToLibraryAsync(uri);
+          showToast("Daily Lockscreen Wallpaper saved to gallery! 🎉");
+        }
+      } catch (e) {
+        console.error(e);
+        Alert.alert('Download Error', 'Could not save today\'s wallpaper.');
+      } finally {
+        setIsQuickDownloading(false);
       }
     }
   };
+
+  // Daily Auto-Download & Notification Alert
+  React.useEffect(() => {
+    if (isNewDayDetected) {
+      if (autoDownloadWallpaper) {
+        showToast("New Day! Auto-downloading today's Vocabulary Wallpaper... 📥");
+        setTimeout(() => {
+          handleQuickDownload();
+        }, 1500);
+      } else {
+        Alert.alert(
+          '📅 New Vocabulary Drop!',
+          "A new day has started! Today's high-yield vocabulary words are available. Would you like to check out the Wallpaper Studio to preview and download today's wallpapers?",
+          [
+            { text: 'Skip' },
+            {
+              text: 'Open Studio',
+              onPress: () => router.push('/wallpaper'),
+            },
+          ]
+        );
+      }
+      setIsNewDayDetected(false);
+    }
+  }, [isNewDayDetected]);
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -189,190 +309,214 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Hero Banner Area */}
-      <View style={[styles.heroCard, { backgroundColor: colors.primary }]}>
-        <View style={styles.heroOverlay}>
-          <Text style={styles.heroSub}>COMPETITIVE EDGE</Text>
-          <Text style={styles.heroTitle}>Smart Prep MCQs</Text>
-          <Text style={styles.heroDescription}>
-            Master KPPSC, ETEA, FIA, and CSS Exams with high fidelity tests & vocabulary.
-          </Text>
+      {/* Rebuilt Hero Card (replaces the purple blob) */}
+      <View style={[styles.heroCardContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.heroHeaderRow}>
+          <View>
+            <Text style={[styles.heroGreeting, dynamicStyles.text]}>
+              Hey, {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Aspirant'}!
+            </Text>
+            <Text style={[styles.heroSubText, dynamicStyles.textMuted]}>
+              Ready to master your syllabus today?
+            </Text>
+          </View>
 
-          {/* Quick Stats Grid */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>PRACTICED</Text>
-              <Text style={styles.statVal}>{stats.totalQuestionsAnswered} Q</Text>
-            </View>
-            <View style={[styles.statCol, styles.statColBorder]}>
-              <Text style={styles.statLabel}>ACCURACY</Text>
-              <Text style={[styles.statVal, { color: '#a5b4fc' }]}>{accuracyText}</Text>
-            </View>
-            <View style={[styles.statCol, styles.statColBorder]}>
-              <Text style={styles.statLabel}>STREAK</Text>
-              <View style={styles.streakRow}>
-                <Flame size={14} color="#f59e0b" fill="#f59e0b" />
-                <Text style={styles.statVal}> {stats.streak}d</Text>
+          {/* Streak badge front and right */}
+          <View style={[styles.heroStreakBadge, { backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fef3c7', borderColor: '#f59e0b' }]}>
+            <Flame size={16} color="#f59e0b" fill="#f59e0b" />
+            <Text style={[styles.heroStreakText, { color: isDark ? '#fbbf24' : '#b45309' }]}>
+              {stats.streak}d Streak
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.heroDivider, { backgroundColor: colors.border }]} />
+
+        {/* 3 Stats Grid */}
+        <View style={styles.heroStatsGrid}>
+          <View style={styles.heroStatItem}>
+            <Text style={[styles.heroStatVal, dynamicStyles.text]}>{stats.totalQuestionsAnswered}</Text>
+            <Text style={[styles.heroStatLabel, dynamicStyles.textMuted]}>PRACTICED</Text>
+          </View>
+
+          <View style={[styles.heroStatItem, styles.heroStatDivider, { borderLeftColor: colors.border, borderRightColor: colors.border }]}>
+            <Text style={[styles.heroStatVal, { color: colors.primary }]}>{accuracyText}</Text>
+            <Text style={[styles.heroStatLabel, dynamicStyles.textMuted]}>ACCURACY</Text>
+          </View>
+
+          <View style={styles.heroStatItem}>
+            <Text style={[styles.heroStatVal, dynamicStyles.text]}>{mcqs.length}</Text>
+            <Text style={[styles.heroStatLabel, dynamicStyles.textMuted]}>MCQS READY</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Today's Focus Strip */}
+      {todayFocusTopic && (
+        <TouchableOpacity
+          onPress={() => {
+            router.push({
+              pathname: '/notes',
+              params: { focusTopicId: todayFocusTopic.topic.id, subject: todayFocusTopic.subject },
+            });
+          }}
+          style={[styles.focusStrip, dynamicStyles.card]}
+        >
+          <View style={styles.focusStripLeft}>
+            <View style={styles.focusLabelRow}>
+              <Sparkles size={12} color={colors.primary} />
+              <Text style={[styles.focusLabel, { color: colors.primary }]}>TODAY'S FOCUS</Text>
+              <View style={[styles.focusImportanceBadge, {
+                backgroundColor: todayFocusTopic.topic.importance === 'critical' ? '#fee2e2' : todayFocusTopic.topic.importance === 'high' ? '#ffedd5' : '#f3f4f6'
+              }]}>
+                <Text style={{
+                  color: todayFocusTopic.topic.importance === 'critical' ? '#ef4444' : todayFocusTopic.topic.importance === 'high' ? '#f97316' : '#4b5563',
+                  fontSize: 8,
+                  fontWeight: '700'
+                }}>
+                  {todayFocusTopic.topic.importance.toUpperCase()}
+                </Text>
               </View>
             </View>
+            <Text style={[styles.focusTitle, dynamicStyles.text]} numberOfLines={1}>
+              {todayFocusTopic.topic.title}
+            </Text>
+            <Text style={[styles.focusMeta, dynamicStyles.textMuted]}>
+              {todayFocusTopic.subject} · {todayFocusTopic.topic.estimatedReadTime} min read
+            </Text>
           </View>
-        </View>
-      </View>
-
-      {/* Learning Dashboard Stats */}
-      <ProfileStats />
-
-      {/* Daily Lockscreen Study Service Card */}
-      <View style={[styles.card, dynamicStyles.card]}>
-        <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
-          <View style={styles.cardHeaderTitleRow}>
-            <Sparkles size={14} color={colors.primary} />
-            <Text style={[styles.cardHeaderTitle, dynamicStyles.text]}>TODAY'S FOCUS</Text>
+          <View style={[styles.focusBtn, { backgroundColor: colors.primary }]}>
+            <Text style={styles.focusBtnText}>Read</Text>
           </View>
-          <Text style={[styles.activeTag, { backgroundColor: '#e0e7ff', color: colors.primary }]}>Active</Text>
-        </View>
-
-        <Text style={[styles.cardBodyText, dynamicStyles.textMuted]}>
-          Subconsciously memorize synonyms and key acronyms every time you unlock your screen! Generate your today's study block:
-        </Text>
-
-        <View style={styles.vocabTagsContainer}>
-          {todayDraftWords.map((item) => (
-            <View key={item.id} style={[styles.vocabTag, { backgroundColor: isDark ? '#27272a' : '#f3f4f6' }]}>
-              <Text style={[styles.vocabTagText, dynamicStyles.text]}>{item.word}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.actionButtonsRow}>
-          <TouchableOpacity
-            onPress={() => router.push('/vocab')}
-            style={[styles.btnPrimary, { backgroundColor: colors.primary }]}
-          >
-            <Text style={styles.btnPrimaryText}>See Full Deck</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleSaveWallpaper}
-            style={[styles.btnSecondary, { backgroundColor: isDark ? '#27272a' : '#f3f4f6', flexDirection: 'row', alignItems: 'center', gap: 6 }]}
-          >
-            <Download size={14} color={colors.text} />
-            <Text style={[styles.btnSecondaryText, dynamicStyles.text]}>Share Text</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Primary Action Button: Quick Start Timed mixed quiz */}
-      <TouchableOpacity
-        onPress={handleQuickStartQuiz}
-        style={[styles.quickStartButton, { backgroundColor: colors.primary }]}
-      >
-        <View style={styles.quickStartFlex}>
-          <View style={styles.quickStartIconBg}>
-            <Play size={16} color="#fff" fill="#fff" />
-          </View>
-          <View style={styles.quickStartTextContainer}>
-            <Text style={styles.quickStartTitle}>Start Quick Quiz</Text>
-            <Text style={styles.quickStartSubtitle}>10 Questions • 15 seconds each</Text>
-          </View>
-        </View>
-        <Award size={18} color="#ffffff" />
-      </TouchableOpacity>
+        </TouchableOpacity>
+      )}
 
       {/* Practice by Subject Header */}
       <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>Practice by Subject</Text>
 
-      {/* Subject Selection Grid */}
-      <View style={styles.subjectGrid}>
+      {/* 2x2 Subject Cards Grid with Progress Bars */}
+      <View style={styles.subjectGrid2x2}>
         {/* English */}
         <TouchableOpacity
           onPress={() => handleCategoryStart('English')}
-          style={[styles.subjectCard, dynamicStyles.card, { borderLeftColor: '#3b82f6', borderLeftWidth: 4 }]}
+          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#3b82f6', borderLeftWidth: 4 }]}
         >
-          <Text style={[styles.subjectLabel, { color: '#3b82f6' }]}>ENG</Text>
-          <Text style={[styles.subjectTitle, dynamicStyles.text]}>English Prep</Text>
-          <Text style={[styles.subjectProgress, dynamicStyles.textMuted]}>Grammar & Vocab</Text>
+          <View>
+            <View style={styles.subjectHeaderRow}>
+              <Text style={[styles.subjectLabel2, { color: '#3b82f6' }]}>ENG</Text>
+              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
+                {subjectProgress['English']?.completed || 0}/{subjectProgress['English']?.total || 0}
+              </Text>
+            </View>
+            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>English Prep</Text>
+          </View>
+          
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, {
+              backgroundColor: '#3b82f6',
+              width: `${subjectProgress['English']?.percent || 0}%`
+            }]} />
+          </View>
         </TouchableOpacity>
 
         {/* General Knowledge */}
         <TouchableOpacity
           onPress={() => handleCategoryStart('General Knowledge')}
-          style={[styles.subjectCard, dynamicStyles.card, { borderLeftColor: '#f97316', borderLeftWidth: 4 }]}
+          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#f97316', borderLeftWidth: 4 }]}
         >
-          <Text style={[styles.subjectLabel, { color: '#f97316' }]}>GK</Text>
-          <Text style={[styles.subjectTitle, dynamicStyles.text]}>General Knowledge</Text>
-          <Text style={[styles.subjectProgress, dynamicStyles.textMuted]}>Pakistan & World</Text>
+          <View>
+            <View style={styles.subjectHeaderRow}>
+              <Text style={[styles.subjectLabel2, { color: '#f97316' }]}>GK</Text>
+              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
+                {subjectProgress['General Knowledge']?.completed || 0}/{subjectProgress['General Knowledge']?.total || 0}
+              </Text>
+            </View>
+            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>General Knowledge</Text>
+          </View>
+          
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, {
+              backgroundColor: '#f97316',
+              width: `${subjectProgress['General Knowledge']?.percent || 0}%`
+            }]} />
+          </View>
         </TouchableOpacity>
 
         {/* Pakistan Studies */}
         <TouchableOpacity
           onPress={() => handleCategoryStart('Pakistan Studies')}
-          style={[styles.subjectCard, dynamicStyles.card, { borderLeftColor: '#ef4444', borderLeftWidth: 4 }]}
+          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#ef4444', borderLeftWidth: 4 }]}
         >
-          <Text style={[styles.subjectLabel, { color: '#ef4444' }]}>PAK</Text>
-          <Text style={[styles.subjectTitle, dynamicStyles.text]}>Pakistan Studies</Text>
-          <Text style={[styles.subjectProgress, dynamicStyles.textMuted]}>History & Geography</Text>
+          <View>
+            <View style={styles.subjectHeaderRow}>
+              <Text style={[styles.subjectLabel2, { color: '#ef4444' }]}>PAK</Text>
+              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
+                {subjectProgress['Pakistan Studies']?.completed || 0}/{subjectProgress['Pakistan Studies']?.total || 0}
+              </Text>
+            </View>
+            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>Pakistan Studies</Text>
+          </View>
+          
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, {
+              backgroundColor: '#ef4444',
+              width: `${subjectProgress['Pakistan Studies']?.percent || 0}%`
+            }]} />
+          </View>
         </TouchableOpacity>
 
         {/* Computer Science */}
         <TouchableOpacity
           onPress={() => handleCategoryStart('Computer Science')}
-          style={[styles.subjectCard, dynamicStyles.card, { borderLeftColor: '#a855f7', borderLeftWidth: 4 }]}
+          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#a855f7', borderLeftWidth: 4 }]}
         >
-          <Text style={[styles.subjectLabel, { color: '#a855f7' }]}>CS</Text>
-          <Text style={[styles.subjectTitle, dynamicStyles.text]}>Computer Science</Text>
-          <Text style={[styles.subjectProgress, dynamicStyles.textMuted]}>IT & Networking</Text>
+          <View>
+            <View style={styles.subjectHeaderRow}>
+              <Text style={[styles.subjectLabel2, { color: '#a855f7' }]}>CS</Text>
+              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
+                {subjectProgress['Computer Science']?.completed || 0}/{subjectProgress['Computer Science']?.total || 0}
+              </Text>
+            </View>
+            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>Computer Science</Text>
+          </View>
+          
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, {
+              backgroundColor: '#a855f7',
+              width: `${subjectProgress['Computer Science']?.percent || 0}%`
+            }]} />
+          </View>
         </TouchableOpacity>
       </View>
 
-      {/* Badge Showcase & Leaderboard Showcase */}
-      <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>Achievements & Leaderboard</Text>
-
-      <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
-        <Text style={[styles.cardSubText, { color: '#3b82f6' }]}>Personal Progression Hub</Text>
-        <Text style={[styles.cardTitle, dynamicStyles.text]}>Aspirant Competency Badges</Text>
-
-        <View style={styles.badgeShowcaseRow}>
-          {/* Badge 1: First Attempt */}
-          <View style={styles.badgeContainer}>
-            <View style={[styles.badgeCircle, { backgroundColor: stats.totalQuestionsAnswered > 0 ? colors.primary : '#27272a' }]}>
-              <Trophy size={16} color="#fff" />
-            </View>
-            <Text style={[styles.badgeText, dynamicStyles.text]}>First Step</Text>
+      {/* Prominent Full-Width Purple Quiz CTA Banner */}
+      <TouchableOpacity
+        onPress={handleQuickStartQuiz}
+        style={[styles.quizCtaBanner, { backgroundColor: colors.primary }]}
+      >
+        <View style={styles.quizCtaLeft}>
+          <View style={styles.quizCtaIconContainer}>
+            <Play size={18} color="#ffffff" fill="#ffffff" />
           </View>
-
-          {/* Badge 2: Streak */}
-          <View style={styles.badgeContainer}>
-            <View style={[styles.badgeCircle, { backgroundColor: stats.streak >= 1 ? '#f59e0b' : '#27272a' }]}>
-              <Flame size={16} color="#fff" />
-            </View>
-            <Text style={[styles.badgeText, dynamicStyles.text]}>Consistent</Text>
-          </View>
-
-          {/* Badge 3: Accuracy */}
-          <View style={styles.badgeContainer}>
-            <View style={[styles.badgeCircle, { backgroundColor: stats.totalQuestionsAnswered >= 5 ? '#10b981' : '#27272a' }]}>
-              <Shield size={16} color="#fff" />
-            </View>
-            <Text style={[styles.badgeText, dynamicStyles.text]}>Sniper</Text>
-          </View>
-
-          {/* Badge 4: Notes */}
-          <View style={styles.badgeContainer}>
-            <View style={[styles.badgeCircle, { backgroundColor: '#eab308' }]}>
-              <BookOpen size={16} color="#fff" />
-            </View>
-            <Text style={[styles.badgeText, dynamicStyles.text]}>Scholar</Text>
+          <View>
+            <Text style={styles.quizCtaTitle}>Start Quick Quiz Challenge</Text>
+            <Text style={styles.quizCtaSubtitle}>10 mixed MCQs · 15s timer per question</Text>
           </View>
         </View>
-      </View>
+        <ChevronRight size={20} color="#ffffff" />
+      </TouchableOpacity>
 
       {/* Competitive Leaderboard */}
-      <View style={[styles.card, dynamicStyles.card, { padding: 16, marginTop: 12 }]}>
-        <Text style={[styles.cardSubText, { color: '#f59e0b' }]}>Competitive Aspirants Lobby</Text>
-        <Text style={[styles.cardTitle, dynamicStyles.text]}>Live Leaderboard</Text>
+      <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
+        <View style={styles.leaderboardHeader}>
+          <View>
+            <Text style={[styles.cardSubText, { color: '#f59e0b' }]}>Competitive Aspirants Lobby</Text>
+            <Text style={[styles.cardTitle, dynamicStyles.text, { marginBottom: 0 }]}>Live Leaderboard</Text>
+          </View>
+          <Award size={18} color="#f59e0b" />
+        </View>
 
-        <View style={styles.leaderboardList}>
+        <View style={[styles.leaderboardList, { marginTop: 12 }]}>
           <View style={styles.leaderItem}>
             <Text style={styles.leaderRank}>1.</Text>
             <Text style={[styles.leaderName, dynamicStyles.text]}>Kashif Afridi (Peshawar)</Text>
@@ -394,6 +538,118 @@ export default function DashboardScreen() {
           </View>
         </View>
       </View>
+
+      {/* Achievements section */}
+      <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
+        <Text style={[styles.cardSubText, { color: colors.primary }]}>Personal Progression Hub</Text>
+        <Text style={[styles.cardTitle, dynamicStyles.text]}>Aspirant Competency Badges</Text>
+
+        <View style={styles.badgeRow}>
+          {/* Badge 1: First Step */}
+          <View style={[styles.compactBadge, stats.totalQuestionsAnswered <= 0 && styles.badgeMuted]}>
+            <View style={[styles.compactBadgeCircle, { backgroundColor: stats.totalQuestionsAnswered > 0 ? colors.primary : (isDark ? '#27272a' : '#e5e7eb') }]}>
+              <Trophy size={16} color={stats.totalQuestionsAnswered > 0 ? '#fff' : '#888'} />
+            </View>
+            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>First Step</Text>
+          </View>
+
+          {/* Badge 2: Streak */}
+          <View style={[styles.compactBadge, stats.streak < 1 && styles.badgeMuted]}>
+            <View style={[styles.compactBadgeCircle, { backgroundColor: stats.streak >= 1 ? '#f59e0b' : (isDark ? '#27272a' : '#e5e7eb') }]}>
+              <Flame size={16} color={stats.streak >= 1 ? '#fff' : '#888'} />
+            </View>
+            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>Consistent</Text>
+          </View>
+
+          {/* Badge 3: Accuracy */}
+          <View style={[styles.compactBadge, stats.totalQuestionsAnswered < 5 && styles.badgeMuted]}>
+            <View style={[styles.compactBadgeCircle, { backgroundColor: stats.totalQuestionsAnswered >= 5 ? '#10b981' : (isDark ? '#27272a' : '#e5e7eb') }]}>
+              <Shield size={16} color={stats.totalQuestionsAnswered >= 5 ? '#fff' : '#888'} />
+            </View>
+            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>Sniper</Text>
+          </View>
+
+          {/* Badge 4: Scholar */}
+          <View style={[styles.compactBadge, completedTopicIds.length < 1 && styles.badgeMuted]}>
+            <View style={[styles.compactBadgeCircle, { backgroundColor: completedTopicIds.length >= 1 ? '#eab308' : (isDark ? '#27272a' : '#e5e7eb') }]}>
+              <BookOpen size={16} color={completedTopicIds.length >= 1 ? '#fff' : '#888'} />
+            </View>
+            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>Scholar</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Vocabulary Wallpaper Link Strip */}
+      <TouchableOpacity
+        onPress={() => router.push('/wallpaper')}
+        style={[styles.wallpaperStripCard, dynamicStyles.card]}
+      >
+        <View style={styles.wallpaperStripLeft}>
+          <View style={[styles.wallpaperStripIconBg, { backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#e0e7ff' }]}>
+            <ImageIcon size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.wallpaperStripTitle, dynamicStyles.text]}>Daily Vocabulary Wallpaper</Text>
+            <Text style={[styles.wallpaperStripSub, dynamicStyles.textMuted]} numberOfLines={1}>
+              Customize and set today's lockscreen: {todayWallpaperWords.map(w => w.word.toUpperCase()).join(' & ')}
+            </Text>
+          </View>
+        </View>
+        <ChevronRight size={18} color={colors.textMuted} />
+      </TouchableOpacity>
+
+      {/* Offscreen ViewShot for Quick Download (Mobile Only) */}
+      {Platform.OS !== 'web' && (
+        <View style={{ position: 'absolute', left: -9999, top: -9999, opacity: 0 }} pointerEvents="none">
+          <ViewShot ref={quickDownloadRef} options={{ format: 'png', quality: 1.0 }} style={{ width: 1080, height: 1920 }}>
+            <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+              <Svg style={StyleSheet.absoluteFillObject}>
+                <Defs>
+                  <SvgGradient id="gradQD" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <Stop offset="0%" stopColor="#312e81" />
+                    <Stop offset="100%" stopColor="#0f172a" />
+                  </SvgGradient>
+                </Defs>
+                <Rect width="100%" height="100%" fill="url(#gradQD)" />
+              </Svg>
+
+              <View style={{ position: 'absolute', left: 40, top: 40, right: 40, bottom: 40, borderWidth: 10, borderColor: 'rgba(255,255,255,0.03)' }} />
+
+              <View style={{ flex: 1, padding: 80, justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 22, fontWeight: '600', letterSpacing: 2, marginTop: 20 }}>
+                  📅 DAILY VOCABULARY LOCKSCREEN
+                </Text>
+                <Text style={{ fontSize: 15, fontWeight: '500', color: '#a5b4fc', marginTop: -20 }}>
+                  EXAM TOPPER PREP • {new Date().toDateString().toUpperCase()}
+                </Text>
+
+                <View style={{ width: '100%', gap: 60, marginVertical: 40 }}>
+                  {todayWallpaperWords.map((item, idx) => (
+                    <View key={item.id} style={{ alignItems: 'center' }}>
+                      {idx > 0 && <View style={{ width: 250, height: 2, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 40 }} />}
+                      <Text style={{ fontSize: 56, fontWeight: 'bold', color: '#ffffff', letterSpacing: -1 }}>
+                        {item.word.toUpperCase()}
+                      </Text>
+                      {item.urduMeaning && (
+                        <Text style={{ fontSize: 32, fontWeight: '500', color: '#a5b4fc', marginTop: 6 }}>
+                          {item.urduMeaning}
+                        </Text>
+                      )}
+                      <Text style={{ fontSize: 24, color: '#f3f4f6', textAlign: 'center', marginTop: 14, lineHeight: 34, paddingHorizontal: 40 }}>
+                        {item.meaning}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={{ color: 'rgba(255,255,255,0.2)', fontSize: 15, fontWeight: '700', letterSpacing: 1, marginBottom: 20 }}>
+                  WWW.EXAMTOPPER.PK • MASTER YOUR SYLLABUS
+                </Text>
+              </View>
+            </View>
+          </ViewShot>
+        </View>
+      )}
 
     </ScrollView>
   );
@@ -435,7 +691,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   statusLabelContainer: {
     flexDirection: 'row',
@@ -467,216 +723,198 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
-  heroCard: {
+  heroCardContainer: {
     borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 24,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 4,
   },
-  heroOverlay: {
-    padding: 24,
-  },
-  heroSub: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#e0e7ff',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-    textTransform: 'capitalize',
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  heroDescription: {
-    fontSize: 14,
-    color: '#e0e7ff',
-    marginTop: 8,
-    lineHeight: 18,
-  },
-  statsGrid: {
+  heroHeaderRow: {
     flexDirection: 'row',
-    marginTop: 20,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  statCol: {
-    flex: 1,
-  },
-  statColBorder: {
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(255, 255, 255, 0.2)',
-    paddingLeft: 14,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#c7d2fe',
-    textTransform: 'capitalize',
-  },
-  statVal: {
-    fontSize: 22,
+  heroGreeting: {
+    fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+  },
+  heroSubText: {
+    fontSize: 12,
     marginTop: 4,
   },
-  streakRow: {
+  heroStreakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  heroStreakText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  heroDivider: {
+    height: 1,
+    marginVertical: 16,
+    opacity: 0.5,
+  },
+  heroStatsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  heroStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  heroStatDivider: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+  },
+  heroStatVal: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  heroStatLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    marginTop: 4,
+    letterSpacing: 0.5,
+  },
+  focusStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 4,
+  },
+  focusStripLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  focusLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  focusLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  focusImportanceBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  focusTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  focusMeta: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  focusBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  focusBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  subjectGrid2x2: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 4,
+  },
+  subjectCard2: {
+    width: '48%',
+    borderRadius: 14,
+    padding: 12,
+    minHeight: 100,
+    justifyContent: 'space-between',
+  },
+  subjectHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  subjectLabel2: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  subjectProgressText: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  subjectTitle2: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  progressBarBg: {
+    height: 4,
+    backgroundColor: 'rgba(128,128,128,0.15)',
+    borderRadius: 2,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  quizCtaBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 4,
+  },
+  quizCtaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  quizCtaIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quizCtaTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  quizCtaSubtitle: {
+    color: '#e0e7ff',
+    fontSize: 11,
+    marginTop: 2,
   },
   card: {
     borderRadius: 16,
     padding: 18,
-    marginBottom: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    paddingBottom: 12,
-    marginBottom: 14,
-  },
-  cardHeaderTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardHeaderTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  activeTag: {
-    fontSize: 11,
-    fontWeight: '500',
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  cardBodyText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  vocabTagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginVertical: 14,
-  },
-  vocabTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  vocabTagText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  btnPrimary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  btnPrimaryText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  btnSecondary: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  btnSecondaryText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  quickStartButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 18,
-    borderRadius: 14,
-    marginBottom: 24,
-  },
-  quickStartFlex: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  quickStartIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickStartTextContainer: {
-    justifyContent: 'center',
-  },
-  quickStartTitle: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  quickStartSubtitle: {
-    color: '#e0e7ff',
-    fontSize: 12,
-    marginTop: 2,
+    marginBottom: 4,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0,
-    marginBottom: 14,
+    marginBottom: 10,
     marginTop: 8,
     textTransform: 'capitalize',
-  },
-  subjectGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 20,
-  },
-  subjectCard: {
-    width: '48%',
-    borderRadius: 14,
-    padding: 16,
-    minHeight: 120,
-    justifyContent: 'space-between',
-  },
-  subjectLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  subjectTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 6,
-  },
-  subjectProgress: {
-    fontSize: 11,
-    marginTop: 4,
   },
   cardSubText: {
     fontSize: 11,
@@ -689,26 +927,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 14,
   },
-  badgeShowcaseRow: {
+  leaderboardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 8,
-  },
-  badgeContainer: {
+    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  badgeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 8,
-    textAlign: 'center',
   },
   leaderboardList: {
     gap: 10,
@@ -740,5 +962,60 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderBottomWidth: 0,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  compactBadge: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  badgeMuted: {
+    opacity: 0.4,
+  },
+  compactBadgeCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  wallpaperStripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 4,
+  },
+  wallpaperStripLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 8,
+  },
+  wallpaperStripIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wallpaperStripTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  wallpaperStripSub: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });
