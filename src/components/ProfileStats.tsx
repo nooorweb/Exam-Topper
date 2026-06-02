@@ -9,6 +9,7 @@ import {
   Award,
   TrendingUp,
 } from 'lucide-react-native';
+import { spacing, componentSpacing } from '../lib/spacing';
 
 export function ProfileStats() {
   const { mcqs, vocab, stats, currentTheme } = useApp();
@@ -39,50 +40,50 @@ export function ProfileStats() {
       val: mcqs.length,
       color: '#6366f1',
       bgLight: 'rgba(99, 102, 241, 0.1)',
-      icon: <Database size={16} color="#6366f1" />,
+      icon: <Database size={20} color="#6366f1" />,
     },
     {
       label: 'Vocab Cards',
       val: vocab.length,
       color: '#8b5cf6',
       bgLight: 'rgba(139, 92, 246, 0.1)',
-      icon: <BookMarked size={16} color="#8b5cf6" />,
+      icon: <BookMarked size={20} color="#8b5cf6" />,
     },
     {
       label: 'Quiz Sessions',
       val: totalSessions,
       color: '#06b6d4',
       bgLight: 'rgba(6, 182, 212, 0.1)',
-      icon: <Award size={16} color="#06b6d4" />,
+      icon: <Award size={20} color="#06b6d4" />,
     },
     {
       label: 'Study Streak',
       val: `${streak}d`,
       color: '#f59e0b',
       bgLight: 'rgba(245, 158, 11, 0.1)',
-      icon: <Flame size={16} color="#f59e0b" fill="#f59e0b" />,
+      icon: <Flame size={20} color="#f59e0b" fill="#f59e0b" />,
     },
     {
-      label: 'Qs Answered',
+      label: 'Questions Answered',
       val: totalQuestions,
       color: '#10b981',
       bgLight: 'rgba(16, 185, 129, 0.1)',
-      icon: <CheckCircle2 size={16} color="#10b981" />,
+      icon: <CheckCircle2 size={20} color="#10b981" />,
     },
     {
       label: 'Accuracy',
       val: accuracy,
       color: '#ef4444',
       bgLight: 'rgba(239, 68, 68, 0.1)',
-      icon: <TrendingUp size={16} color="#ef4444" />,
+      icon: <TrendingUp size={20} color="#ef4444" />,
     },
   ];
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.header}>
-        <TrendingUp size={15} color={colors.primary} />
-        <Text style={[styles.title, { color: colors.text }]}>YOUR LEARNING DASHBOARD</Text>
+        <TrendingUp size={20} color={colors.primary} />
+        <Text style={[styles.title, { color: colors.text }]}>Learning Dashboard</Text>
       </View>
       
       <View style={styles.grid}>
@@ -112,59 +113,55 @@ export function ProfileStats() {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
-    padding: 16,
+    padding: componentSpacing.cardPadding,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOpacity: 0.02,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
-    marginBottom: 16,
+    marginBottom: spacing.xl,
+    marginHorizontal: spacing.base,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(128, 128, 128, 0.08)',
-    paddingBottom: 8,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+    paddingBottom: spacing.lg,
   },
   title: {
-    fontSize: 9.5,
-    fontWeight: '900',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.lg,
   },
   statBox: {
-    width: '48.5%',
+    width: '48%',
     flexDirection: 'column',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: 14,
     borderWidth: 1,
   },
   iconBg: {
-    padding: 6,
-    borderRadius: 8,
-    marginBottom: 6,
+    padding: spacing.sm,
+    borderRadius: 10,
+    marginBottom: spacing.md,
   },
   statVal: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
   },
   statLabel: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '500',
     textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.2,
   },
 });

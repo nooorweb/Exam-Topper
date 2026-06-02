@@ -79,17 +79,17 @@ export default function QuizSetupScreen() {
 
   return (
     <ScrollView style={[styles.container, dynamicStyles.container]} contentContainerStyle={styles.content}>
-      <View style={[styles.card, dynamicStyles.card, { padding: 18, borderRadius: 16 }]}>
+      <View style={[styles.card, dynamicStyles.card, { padding: 20, borderRadius: 16 }]}>
         <View style={styles.headerRow}>
-          <Award size={18} color={colors.primary} />
-          <Text style={[styles.headerTitle, dynamicStyles.text]}>EXAM CONFIGURATION DESK</Text>
+          <Award size={20} color={colors.primary} />
+          <Text style={[styles.headerTitle, dynamicStyles.text]}>Quiz Setup</Text>
         </View>
         <Text style={[styles.headerSubtitle, dynamicStyles.textMuted]}>
-          Configure your mock test parameters. All questions reflect official ETEA, KPPSC, and CSS syllabi guidelines.
+          Configure your mock test parameters and get started.
         </Text>
 
         {/* 1. Category Selection */}
-        <Text style={[styles.fieldLabel, dynamicStyles.textMuted]}>SELECT SUBJECT CATEGORY</Text>
+        <Text style={[styles.fieldLabel, dynamicStyles.textMuted]}>Select Subject</Text>
         <View style={styles.optionsList}>
           {categories.map((cat) => {
             const isSelected = category === cat;
@@ -130,10 +130,10 @@ export default function QuizSetupScreen() {
             },
           ]}
         >
-          <Text style={[styles.subCardTitle, { color: colors.primary }]}>TEST PARAMETERS</Text>
+          <Text style={[styles.subCardTitle, { color: colors.primary }]}>Settings</Text>
 
           {/* 2. Questions Limit */}
-          <Text style={[styles.fieldLabel, dynamicStyles.textMuted, { marginTop: 4 }]}>QUESTION LIMIT</Text>
+          <Text style={[styles.fieldLabel, dynamicStyles.textMuted, { marginTop: 4 }]}>Number of Questions</Text>
           <View style={styles.limitGrid}>
             {questionLimits.map((limit) => {
               const isSelected = questionsLimit === limit;
@@ -166,7 +166,7 @@ export default function QuizSetupScreen() {
           </View>
 
           {/* 3. Difficulty */}
-          <Text style={[styles.fieldLabel, dynamicStyles.textMuted]}>TARGET FOCUS METHOD</Text>
+          <Text style={[styles.fieldLabel, dynamicStyles.textMuted]}>Focus Method</Text>
           <View style={styles.difficultyRow}>
             {(['All', 'Conceptual', 'High Repeats'] as const).map((diff) => {
               const isSelected = difficulty === diff;
@@ -262,8 +262,8 @@ export default function QuizSetupScreen() {
         onPress={handleStartQuiz}
         style={[styles.startButton, { backgroundColor: colors.primary }]}
       >
-        <Play size={15} color="#ffffff" fill="#ffffff" />
-        <Text style={styles.startButtonText}>LAUNCH TIMED QUIZ SESSION</Text>
+        <Play size={18} color="#ffffff" fill="#ffffff" />
+        <Text style={styles.startButtonText}>Start Quiz</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -276,154 +276,155 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+    gap: 20,
   },
   card: {
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   subCard: {
     borderRadius: 12,
     borderWidth: 1,
-    padding: 12,
-    marginTop: 16,
+    padding: 16,
+    marginTop: 20,
   },
   subCardTitle: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0,
+    marginBottom: 12,
   },
   divider: {
     borderBottomWidth: 1,
-    marginVertical: 12,
+    marginVertical: 20,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 12,
+    marginBottom: 12,
   },
   headerTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0,
   },
   headerSubtitle: {
-    fontSize: 10.5,
-    lineHeight: 14,
-    marginBottom: 16,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
   },
   fieldLabel: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 12,
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0,
+    marginBottom: 12,
+    marginTop: 16,
   },
   optionsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 12,
   },
   optionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   optionText: {
-    fontSize: 10.5,
+    fontSize: 14,
   },
   limitGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 4,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 12,
   },
   limitButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
   },
   limitText: {
-    fontSize: 11,
+    fontSize: 13,
   },
   difficultyRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 12,
   },
   difficultyButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 10,
   },
   difficultyText: {
-    fontSize: 10.5,
+    fontSize: 13,
   },
   cardDivider: {
     borderTopWidth: 1,
-    marginTop: 18,
-    marginBottom: 14,
+    marginTop: 20,
+    marginBottom: 16,
   },
   markingToggleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
   },
   markingInfo: {
     flex: 1,
-    paddingRight: 10,
   },
   markingTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '500',
   },
   markingSubtitle: {
-    fontSize: 9.5,
-    marginTop: 2,
+    fontSize: 12,
+    marginTop: 4,
   },
   markingInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-    padding: 10,
+    marginTop: 16,
+    padding: 14,
     backgroundColor: 'rgba(128,128,128,0.05)',
     borderRadius: 12,
   },
   markingInputLabel: {
-    fontSize: 10.5,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '500',
   },
   markingValuesList: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 10,
   },
   markingValueBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
   },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 16,
-    marginTop: 8,
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 20,
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
   startButtonText: {
     color: '#ffffff',
-    fontSize: 11.5,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0,
   },
 });

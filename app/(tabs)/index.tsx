@@ -272,15 +272,15 @@ export default function DashboardScreen() {
             <Play size={16} color="#fff" fill="#fff" />
           </View>
           <View style={styles.quickStartTextContainer}>
-            <Text style={styles.quickStartTitle}>Quick start mixed Quiz</Text>
-            <Text style={styles.quickStartSubtitle}>10 Random MCQs • 15s Timer per question</Text>
+            <Text style={styles.quickStartTitle}>Start Quick Quiz</Text>
+            <Text style={styles.quickStartSubtitle}>10 Questions • 15 seconds each</Text>
           </View>
         </View>
         <Award size={18} color="#ffffff" />
       </TouchableOpacity>
 
       {/* Practice by Subject Header */}
-      <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>PRACTICE BY SUBJECT</Text>
+      <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>Practice by Subject</Text>
 
       {/* Subject Selection Grid */}
       <View style={styles.subjectGrid}>
@@ -326,7 +326,7 @@ export default function DashboardScreen() {
       </View>
 
       {/* Badge Showcase & Leaderboard Showcase */}
-      <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>ASPIRANT LEAGUE & BADGES</Text>
+      <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>Achievements & Leaderboard</Text>
 
       <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
         <Text style={[styles.cardSubText, { color: '#3b82f6' }]}>Personal Progression Hub</Text>
@@ -406,6 +406,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+    gap: 16,
   },
   toast: {
     position: 'absolute',
@@ -413,12 +414,12 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     backgroundColor: '#1f2937',
-    padding: 10,
-    borderRadius: 20,
+    padding: 12,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     zIndex: 999,
     shadowColor: '#000',
     shadowOpacity: 0.2,
@@ -427,79 +428,80 @@ const styles = StyleSheet.create({
   },
   toastText: {
     color: '#f9fafb',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '500',
   },
   statusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statusLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   statusLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'none',
   },
   syncBadge: {
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   badgeFlex: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   syncBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '500',
   },
   heroCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   heroOverlay: {
-    padding: 20,
+    padding: 24,
   },
   heroSub: {
-    fontSize: 9,
-    fontWeight: '900',
+    fontSize: 11,
+    fontWeight: '600',
     color: '#e0e7ff',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 10,
     alignSelf: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
+    textTransform: 'capitalize',
   },
   heroTitle: {
-    fontSize: 22,
-    fontWeight: '900',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#ffffff',
   },
   heroDescription: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#e0e7ff',
-    marginTop: 4,
-    lineHeight: 15,
+    marginTop: 8,
+    lineHeight: 18,
   },
   statsGrid: {
     flexDirection: 'row',
-    marginTop: 16,
-    paddingTop: 12,
+    marginTop: 20,
+    paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.2)',
   },
@@ -509,18 +511,19 @@ const styles = StyleSheet.create({
   statColBorder: {
     borderLeftWidth: 1,
     borderLeftColor: 'rgba(255, 255, 255, 0.2)',
-    paddingLeft: 12,
+    paddingLeft: 14,
   },
   statLabel: {
-    fontSize: 8,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '500',
     color: '#c7d2fe',
+    textTransform: 'capitalize',
   },
   statVal: {
-    fontSize: 19,
-    fontWeight: '900',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#ffffff',
-    marginTop: 2,
+    marginTop: 4,
   },
   streakRow: {
     flexDirection: 'row',
@@ -528,7 +531,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 16,
-    padding: 14,
+    padding: 18,
     marginBottom: 16,
   },
   cardHeader: {
@@ -536,48 +539,49 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    paddingBottom: 8,
-    marginBottom: 10,
+    paddingBottom: 12,
+    marginBottom: 14,
   },
   cardHeaderTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   cardHeaderTitle: {
-    fontSize: 10,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   activeTag: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    paddingHorizontal: 8,
-    paddingVertical: 1,
-    borderRadius: 10,
+    fontSize: 11,
+    fontWeight: '500',
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
   cardBodyText: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 13,
+    lineHeight: 18,
   },
   vocabTagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginVertical: 10,
+    gap: 8,
+    marginVertical: 14,
   },
   vocabTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   vocabTagText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '500',
   },
   actionButtonsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
+    gap: 10,
+    marginTop: 8,
   },
   btnPrimary: {
     flex: 1,
@@ -585,42 +589,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 10,
   },
   btnPrimaryText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '600',
   },
   btnSecondary: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 10,
   },
   btnSecondaryText: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '600',
   },
   quickStartButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 16,
+    padding: 18,
+    borderRadius: 14,
+    marginBottom: 24,
   },
   quickStartFlex: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   quickStartIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -630,106 +634,110 @@ const styles = StyleSheet.create({
   },
   quickStartTitle: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
   },
   quickStartSubtitle: {
     color: '#e0e7ff',
-    fontSize: 9,
-    marginTop: 1,
+    fontSize: 12,
+    marginTop: 2,
   },
   sectionTitle: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-    marginTop: 4,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0,
+    marginBottom: 14,
+    marginTop: 8,
+    textTransform: 'capitalize',
   },
   subjectGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 20,
   },
   subjectCard: {
     width: '48%',
-    borderRadius: 16,
-    padding: 12,
-    minHeight: 110,
+    borderRadius: 14,
+    padding: 16,
+    minHeight: 120,
     justifyContent: 'space-between',
   },
   subjectLabel: {
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  subjectTitle: {
     fontSize: 11,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  subjectProgress: {
-    fontSize: 8,
-    marginTop: 2,
-  },
-  cardSubText: {
-    fontSize: 8,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textTransform: 'uppercase',
   },
+  subjectTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  subjectProgress: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  cardSubText: {
+    fontSize: 11,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
   cardTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    marginTop: 2,
-    marginBottom: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+    marginBottom: 14,
   },
   badgeShowcaseRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 4,
+    marginTop: 8,
   },
   badgeContainer: {
     alignItems: 'center',
   },
   badgeCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    marginTop: 6,
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 8,
+    textAlign: 'center',
   },
   leaderboardList: {
-    gap: 8,
+    gap: 10,
   },
   leaderItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 6,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(128, 128, 128, 0.1)',
   },
   leaderRank: {
-    width: 18,
-    fontSize: 11,
-    fontWeight: 'bold',
+    width: 20,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#9ca3af',
   },
   leaderName: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 13,
+    fontWeight: '500',
   },
   leaderScore: {
-    fontSize: 10,
+    fontSize: 12,
   },
   leaderItemSelf: {
     backgroundColor: '#6366f1',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     borderBottomWidth: 0,
   },

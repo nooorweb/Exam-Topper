@@ -28,6 +28,11 @@ import {
   RotateCcw,
   Check,
   Play,
+  Zap,
+  Target,
+  BookMarked,
+  Brain,
+  Lightbulb,
 } from 'lucide-react-native';
 
 export default function NotesScreen() {
@@ -150,7 +155,7 @@ export default function NotesScreen() {
     return results;
   }, [searchQuery]);
 
-  const getSubjectIcon = (sub: SubjectNotebook['subject'], color: string, size: number = 14) => {
+  const getSubjectIcon = (sub: SubjectNotebook['subject'], color: string, size: number = 18) => {
     switch (sub) {
       case 'English':
         return <BookOpen size={size} color={color} />;
@@ -187,36 +192,39 @@ export default function NotesScreen() {
 
   return (
     <ScrollView style={[styles.container, dynamicStyles.container]} contentContainerStyle={styles.content}>
-      {/* Syllabus Progress Card */}
-      <View style={[styles.card, dynamicStyles.card, { padding: 16, borderRadius: 16 }]}>
+      {/* Syllabus Progress Card - Enhanced */}
+      <View style={[styles.card, dynamicStyles.card, { padding: 20, borderRadius: 18 }]}>
         <View style={styles.progressHeader}>
           <View style={styles.progressInfo}>
-            <Text style={[styles.progressTitle, dynamicStyles.text]}>SYLLABUS PROGRESS TRACKER</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Zap size={18} color={colors.primary} />
+              <Text style={[styles.progressTitle, dynamicStyles.text]}>LEARNING PROGRESS</Text>
+            </View>
             <Text style={[styles.progressSubtitle, dynamicStyles.textMuted]}>
-              Completed {completedTopicIds.length} of {totalTopicsCount} key topics
+              {completedTopicIds.length} of {totalTopicsCount} topics mastered • {overallMasteryPercentage}% complete
             </Text>
           </View>
           <View style={styles.progressRingOuter}>
-            <Svg width={54} height={54}>
+            <Svg width={64} height={64}>
               <Circle
-                cx={27}
-                cy={27}
-                r={22}
+                cx={32}
+                cy={32}
+                r={26}
                 stroke={isDark ? '#27272a' : '#f3f4f6'}
-                strokeWidth={4.5}
+                strokeWidth={5}
                 fill="transparent"
               />
               <Circle
-                cx={27}
-                cy={27}
-                r={22}
+                cx={32}
+                cy={32}
+                r={26}
                 stroke={colors.primary}
-                strokeWidth={4.5}
-                strokeDasharray={`${2 * Math.PI * 22}`}
-                strokeDashoffset={2 * Math.PI * 22 * (1 - overallMasteryPercentage / 100)}
+                strokeWidth={5}
+                strokeDasharray={`${2 * Math.PI * 26}`}
+                strokeDashoffset={2 * Math.PI * 26 * (1 - overallMasteryPercentage / 100)}
                 strokeLinecap="round"
                 fill="transparent"
-                origin="27, 27"
+                origin="32, 32"
                 rotation="-90"
               />
             </Svg>
@@ -229,20 +237,20 @@ export default function NotesScreen() {
         </View>
 
         {completedTopicIds.length > 0 && (
-          <TouchableOpacity onPress={handleResetProgress} style={[styles.btnReset, { marginTop: 8 }]}>
-            <RotateCcw size={10} color={colors.textMuted} />
-            <Text style={[styles.btnResetText, dynamicStyles.textMuted]}>Reset Study Progress</Text>
+          <TouchableOpacity onPress={handleResetProgress} style={[styles.btnReset, { marginTop: 12 }]}>
+            <RotateCcw size={14} color={colors.textMuted} />
+            <Text style={[styles.btnResetText, dynamicStyles.textMuted]}>Reset Progress</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Global Notes Search Bar */}
+      {/* Global Notes Search Bar - Enhanced */}
       <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Search size={14} color={colors.textMuted} />
+        <Search size={18} color={colors.textMuted} />
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search all notes, timelines & formulas..."
+          placeholder="Search notes, formulas, topics..."
           placeholderTextColor={colors.textMuted}
           style={[styles.searchInput, dynamicStyles.text]}
         />
@@ -252,13 +260,14 @@ export default function NotesScreen() {
       {searchQuery.trim().length > 0 ? (
         <View style={styles.topicsStack}>
           <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>
-            SEARCH DISCOVERIES ({searchedTopics.length})
+            🔍 SEARCH RESULTS ({searchedTopics.length})
           </Text>
           {searchedTopics.length === 0 ? (
             <View style={[styles.emptySearchCard, dynamicStyles.card]}>
-              <Text style={[styles.emptySearchTitle, dynamicStyles.text]}>No notes matches found</Text>
+              <Lightbulb size={32} color={colors.primary} opacity={0.5} />
+              <Text style={[styles.emptySearchTitle, dynamicStyles.text]}>No matches found</Text>
               <Text style={[styles.emptySearchSub, dynamicStyles.textMuted]}>
-                Try using keywords like "Pre-Partition", "Trigonometry", or "Prepositions".
+                Try keywords like "Prepositions", "Probability", or "Independence"
               </Text>
             </View>
           ) : (
@@ -273,9 +282,9 @@ export default function NotesScreen() {
                     style={styles.topicHeader}
                   >
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <View style={{ padding: 4, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 6 }}>
-                          {getSubjectIcon(subject, colors.primary, 10)}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <View style={{ padding: 6, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 8 }}>
+                          {getSubjectIcon(subject, colors.primary, 14)}
                         </View>
                         <Text style={[styles.subjectTagText, dynamicStyles.textMuted]}>{subject}</Text>
                       </View>
@@ -292,7 +301,7 @@ export default function NotesScreen() {
                         },
                       ]}
                     >
-                      {isCompleted && <Check size={10} color="#fff" />}
+                      {isCompleted && <Check size={12} color="#fff" />}
                     </TouchableOpacity>
                   </TouchableOpacity>
 
@@ -317,7 +326,7 @@ export default function NotesScreen() {
         </View>
       ) : (
         <>
-          {/* Horizontal Tab bar for active Subject */}
+          {/* Horizontal Tab bar for active Subject - Enhanced */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -340,7 +349,7 @@ export default function NotesScreen() {
                     },
                   ]}
                 >
-                  {getSubjectIcon(sub, isActive ? '#ffffff' : colors.textMuted, 12)}
+                  {getSubjectIcon(sub, isActive ? '#ffffff' : colors.textMuted, 16)}
                   <Text style={[styles.tabButtonText, { color: isActive ? '#ffffff' : colors.text }]}>
                     {sub}
                   </Text>
@@ -349,23 +358,33 @@ export default function NotesScreen() {
             })}
           </ScrollView>
 
-          {/* Active Notebook banner description */}
+          {/* Active Notebook banner description - Enhanced */}
           {activeNotebook && (
-            <View style={[styles.card, dynamicStyles.card, { padding: 12, borderRadius: 16, marginBottom: 12 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                {getSubjectIcon(activeSubject, colors.primary, 14)}
-                <Text style={[styles.deskLabel, dynamicStyles.text]}>{activeSubject} Study Desk</Text>
+            <View style={[styles.card, dynamicStyles.card, { padding: 16, borderRadius: 16, marginBottom: 16 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{ paddingTop: 2 }}>
+                  {getSubjectIcon(activeSubject, colors.primary, 20)}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.deskLabel, dynamicStyles.text]}>📚 {activeSubject} Desk</Text>
+                  <Text style={[styles.deskSub, dynamicStyles.textMuted]}>{activeNotebook.description}</Text>
+                </View>
               </View>
-              <Text style={[styles.deskSub, dynamicStyles.textMuted]}>{activeNotebook.description}</Text>
             </View>
           )}
 
-          {/* Topics Accordion Stack */}
+          {/* Topics Accordion Stack - Enhanced */}
           {activeNotebook && (
             <View style={styles.topicsStack}>
+              <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>
+                📖 TOPICS TO MASTER ({activeNotebook.topics.length})
+              </Text>
               {activeNotebook.topics.map((topic) => {
                 const isOpen = selectedTopicId === topic.id;
                 const isCompleted = completedTopicIds.includes(topic.id);
+                const allPointsChecked = topic.keyPoints.every(
+                  (_, i) => checkedPoints[`${topic.id}-pt-${i}`]
+                );
 
                 return (
                   <View key={topic.id} style={[styles.topicWrapper, dynamicStyles.card]}>
@@ -374,8 +393,8 @@ export default function NotesScreen() {
                       style={styles.topicHeader}
                     >
                       <View style={{ flex: 1, paddingRight: 8 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <View
                             style={[
                               styles.importanceTag,
                               {
@@ -385,27 +404,43 @@ export default function NotesScreen() {
                                     : topic.importance === 'high'
                                     ? '#ffedd5'
                                     : '#f3f4f6',
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
                                 color:
                                   topic.importance === 'critical'
                                     ? '#ef4444'
                                     : topic.importance === 'high'
                                     ? '#f97316'
                                     : '#4b5563',
-                              },
-                            ]}
-                          >
-                            {topic.importance} topic
-                          </Text>
+                                fontSize: 11,
+                                fontWeight: '700',
+                              }}
+                            >
+                              {topic.importance === 'critical'
+                                ? '⚡ MUST KNOW'
+                                : topic.importance === 'high'
+                                ? '⚠️ HIGH'
+                                : '📌 MEDIUM'}
+                            </Text>
+                          </View>
 
                           <View style={styles.timeTag}>
-                            <Clock size={10} color={colors.textMuted} />
+                            <Clock size={13} color={colors.textMuted} />
                             <Text style={[styles.timeTagText, dynamicStyles.textMuted]}>
-                              {topic.estimatedReadTime} min read
+                              {topic.estimatedReadTime}m
                             </Text>
                           </View>
                         </View>
 
                         <Text style={[styles.topicTitleText, dynamicStyles.text]}>{topic.title}</Text>
+                        {allPointsChecked && (
+                          <Text style={{ fontSize: 12, color: colors.success, marginTop: 4, fontWeight: '600' }}>
+                            ✓ All points reviewed
+                          </Text>
+                        )}
                       </View>
 
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -419,13 +454,13 @@ export default function NotesScreen() {
                             },
                           ]}
                         >
-                          {isCompleted && <Check size={9} color="#fff" />}
+                          {isCompleted && <Check size={10} color="#fff" />}
                         </TouchableOpacity>
 
                         {isOpen ? (
-                          <ChevronUp size={16} color={colors.textMuted} />
+                          <ChevronUp size={18} color={colors.textMuted} />
                         ) : (
-                          <ChevronDown size={16} color={colors.textMuted} />
+                          <ChevronDown size={18} color={colors.textMuted} />
                         )}
                       </View>
                     </TouchableOpacity>
@@ -455,7 +490,7 @@ export default function NotesScreen() {
   );
 }
 
-// Topic Details Renderer component
+// Topic Details Renderer component - Enhanced with better reading layout
 function TopicDetails({
   topic,
   subject,
@@ -475,133 +510,227 @@ function TopicDetails({
   colors: any;
   isDark: boolean;
 }) {
+  const [readingMode, setReadingMode] = useState<'read' | 'test'>('read');
+
   return (
     <View style={styles.detailsContent}>
-      {/* Overview */}
-      <View style={styles.detailSection}>
-        <Text style={styles.sectionLabel}>Introduction</Text>
-        <Text style={[styles.overviewText, { color: colors.text }]}>{topic.overview}</Text>
-      </View>
-
-      {/* Key points checklist */}
-      <View style={[styles.checklistCard, { backgroundColor: isDark ? '#18181b' : '#f9fafb', borderColor: colors.border }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <Sparkles size={11} color={colors.primary} />
-          <Text style={[styles.checklistHeader, { color: colors.primary }]}>
-            High-Yield Key Points (Tap to verify)
+      {/* Reading Mode Toggle - New */}
+      <View style={styles.modeToggleContainer}>
+        <TouchableOpacity
+          onPress={() => setReadingMode('read')}
+          style={[
+            styles.modeButton,
+            {
+              backgroundColor: readingMode === 'read' ? colors.primary : 'transparent',
+              borderBottomColor: readingMode === 'read' ? colors.primary : colors.border,
+            },
+          ]}
+        >
+          <BookMarked size={16} color={readingMode === 'read' ? '#fff' : colors.textMuted} />
+          <Text
+            style={{
+              color: readingMode === 'read' ? '#fff' : colors.text,
+              fontSize: 14,
+              fontWeight: '600',
+            }}
+          >
+            Read
           </Text>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.checklistItems}>
-          {topic.keyPoints.map((pt, i) => {
-            const itemKey = `${topic.id}-pt-${i}`;
-            const isPointChecked = !!checkedPoints[itemKey];
-
-            return (
-              <TouchableOpacity
-                key={i}
-                onPress={() => toggleLineItem(itemKey)}
-                style={styles.checkItemRow}
-              >
-                <View
-                  style={[
-                    styles.pointCheckbox,
-                    {
-                      backgroundColor: isPointChecked ? colors.primary : 'transparent',
-                      borderColor: isPointChecked ? colors.primary : colors.textMuted,
-                    },
-                  ]}
-                >
-                  {isPointChecked && <Check size={8} color="#fff" />}
-                </View>
-                <Text
-                  style={[
-                    styles.checkItemText,
-                    {
-                      color: colors.text,
-                      textDecorationLine: isPointChecked ? 'line-through' : 'none',
-                      opacity: isPointChecked ? 0.5 : 1,
-                    },
-                  ]}
-                >
-                  {pt}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <TouchableOpacity
+          onPress={() => setReadingMode('test')}
+          style={[
+            styles.modeButton,
+            {
+              backgroundColor: readingMode === 'test' ? colors.primary : 'transparent',
+              borderBottomColor: readingMode === 'test' ? colors.primary : colors.border,
+            },
+          ]}
+        >
+          <Brain size={16} color={readingMode === 'test' ? '#fff' : colors.textMuted} />
+          <Text
+            style={{
+              color: readingMode === 'test' ? '#fff' : colors.text,
+              fontSize: 14,
+              fontWeight: '600',
+            }}
+          >
+            Test
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Formulas if math */}
-      {topic.formulas && topic.formulas.length > 0 && (
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>Formula Core</Text>
-          <View style={styles.formulasStack}>
-            {topic.formulas.map((frm, idx) => (
-              <View key={idx} style={[styles.formulaCard, { backgroundColor: isDark ? '#1a1b2e' : '#eef2ff', borderColor: colors.border }]}>
-                <View style={styles.formulaHeader}>
-                  <Text style={[styles.formulaName, { color: colors.primary }]}>{frm.name}</Text>
-                  <Text style={styles.equationTag}>Equation</Text>
-                </View>
-                <View style={[styles.equationBox, { backgroundColor: isDark ? '#131422' : '#dbeafe' }]}>
-                  <Text style={styles.equationText}>{frm.equation}</Text>
-                </View>
-                <Text style={[styles.formulaAppText, { color: colors.textMuted }]}>
-                  <Text style={{ fontWeight: 'bold', color: colors.primary }}>App: </Text>
-                  {frm.application}
+      {readingMode === 'read' ? (
+        <>
+          {/* Introduction - Improved Typography */}
+          <View style={[styles.readingSection, { backgroundColor: isDark ? '#1a1a1d' : '#f5f5f7', borderRadius: 14, padding: 14 }]}>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+              <BookOpen size={16} color={colors.primary} />
+              <Text style={[styles.readingSectionTitle, { color: colors.primary }]}>Overview</Text>
+            </View>
+            <Text style={[styles.overviewText, { color: colors.text, lineHeight: 22 }]}>{topic.overview}</Text>
+          </View>
+
+          {/* Key Points Checklist - Improved */}
+          <View style={[styles.checklistCard, { backgroundColor: isDark ? '#18181b' : '#f9fafb', borderColor: colors.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <Sparkles size={18} color={colors.primary} />
+              <Text style={[styles.checklistHeader, { color: colors.text, fontSize: 16 }]}>
+                Key Points
+              </Text>
+              <View style={{ flex: 1 }} />
+              <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: '500' }}>
+                {topic.keyPoints.filter((_, i) => checkedPoints[`${topic.id}-pt-${i}`]).length}/{topic.keyPoints.length}
+              </Text>
+            </View>
+
+            <View style={styles.checklistItems}>
+              {topic.keyPoints.map((pt, i) => {
+                const itemKey = `${topic.id}-pt-${i}`;
+                const isPointChecked = !!checkedPoints[itemKey];
+
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => toggleLineItem(itemKey)}
+                    style={[
+                      styles.checkItemRow,
+                      {
+                        backgroundColor: isPointChecked ? (isDark ? '#1f2937' : '#ecfdf5') : 'transparent',
+                        borderRadius: 10,
+                        padding: 10,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.pointCheckbox,
+                        {
+                          backgroundColor: isPointChecked ? colors.success : 'transparent',
+                          borderColor: isPointChecked ? colors.success : colors.borderAccent,
+                        },
+                      ]}
+                    >
+                      {isPointChecked && <Check size={10} color="#fff" />}
+                    </View>
+                    <Text
+                      style={[
+                        styles.checkItemText,
+                        {
+                          color: colors.text,
+                          textDecorationLine: isPointChecked ? 'line-through' : 'none',
+                          opacity: isPointChecked ? 0.6 : 1,
+                          lineHeight: 20,
+                        },
+                      ]}
+                    >
+                      {pt}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Formulas if math - Improved */}
+          {topic.formulas && topic.formulas.length > 0 && (
+            <View style={styles.detailSection}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Target size={18} color={colors.primary} />
+                <Text style={[styles.sectionLabel, { color: colors.text, fontSize: 14, fontWeight: '700' }]}>
+                  Formulas & Applications
                 </Text>
               </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Lookup Tables */}
-      {topic.tables && topic.tables.length > 0 && (
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>Timeline Key Table</Text>
-          {topic.tables.map((table, tIdx) => (
-            <View key={tIdx} style={[styles.tableBorder, { borderColor: colors.border }]}>
-              {/* Header Row */}
-              <View style={[styles.tableHeaderRow, { backgroundColor: isDark ? '#27272a' : '#e5e7eb' }]}>
-                {table.headers.map((h, hIdx) => (
-                  <View key={hIdx} style={styles.tableHeaderCol}>
-                    <Text style={[styles.tableHeaderCellText, { color: colors.text }]}>{h}</Text>
+              <View style={styles.formulasStack}>
+                {topic.formulas.map((frm, idx) => (
+                  <View key={idx} style={[styles.formulaCard, { backgroundColor: isDark ? '#1a1b2e' : '#eef2ff', borderColor: colors.border }]}>
+                    <View style={styles.formulaHeader}>
+                      <Text style={[styles.formulaName, { color: colors.primary, fontSize: 14 }]}>{frm.name}</Text>
+                      <View style={styles.equationTag}>
+                        <Text style={{ color: '#a5b4fc', fontSize: 10, fontWeight: '600' }}>Eq</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.equationBox, { backgroundColor: isDark ? '#131422' : '#dbeafe' }]}>
+                      <Text style={styles.equationText}>{frm.equation}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <Lightbulb size={14} color={colors.warning} />
+                      <Text style={[styles.formulaAppText, { color: colors.text, lineHeight: 18 }]}>
+                        {frm.application}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </View>
+            </View>
+          )}
 
-              {/* Rows */}
-              {table.rows.map((row, rIdx) => (
-                <View
-                  key={rIdx}
-                  style={[
-                    styles.tableRow,
-                    {
-                      backgroundColor:
-                        rIdx % 2 === 1 ? (isDark ? '#18181b' : '#f9fafb') : isDark ? '#121214' : '#ffffff',
-                      borderBottomColor: colors.border,
-                      borderBottomWidth: rIdx < table.rows.length - 1 ? 1 : 0,
-                    },
-                  ]}
-                >
-                  {row.map((val, colIdx) => (
-                    <View key={colIdx} style={styles.tableCol}>
-                      <Text style={[styles.tableCellText, { color: colors.text }]}>{val}</Text>
+          {/* Lookup Tables - Improved */}
+          {topic.tables && topic.tables.length > 0 && (
+            <View style={styles.detailSection}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <BookOpen size={18} color={colors.primary} />
+                <Text style={[styles.sectionLabel, { color: colors.text, fontSize: 14, fontWeight: '700' }]}>
+                  Timeline & Reference
+                </Text>
+              </View>
+              {topic.tables.map((table, tIdx) => (
+                <View key={tIdx} style={[styles.tableBorder, { borderColor: colors.border }]}>
+                  {/* Header Row */}
+                  <View style={[styles.tableHeaderRow, { backgroundColor: isDark ? '#27272a' : '#e5e7eb' }]}>
+                    {table.headers.map((h, hIdx) => (
+                      <View key={hIdx} style={styles.tableHeaderCol}>
+                        <Text style={[styles.tableHeaderCellText, { color: colors.text, fontSize: 12, fontWeight: '700' }]}>{h}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Rows */}
+                  {table.rows.map((row, rIdx) => (
+                    <View
+                      key={rIdx}
+                      style={[
+                        styles.tableRow,
+                        {
+                          backgroundColor:
+                            rIdx % 2 === 1 ? (isDark ? '#18181b' : '#f9fafb') : isDark ? '#121214' : '#ffffff',
+                          borderBottomColor: colors.border,
+                          borderBottomWidth: rIdx < table.rows.length - 1 ? 1 : 0,
+                        },
+                      ]}
+                    >
+                      {row.map((val, colIdx) => (
+                        <View key={colIdx} style={styles.tableCol}>
+                          <Text style={[styles.tableCellText, { color: colors.text, fontSize: 13 }]}>{val}</Text>
+                        </View>
+                      ))}
                     </View>
                   ))}
                 </View>
               ))}
             </View>
-          ))}
-        </View>
-      )}
+          )}
 
-      {/* Analyst Insights */}
-      <View style={[styles.insightCard, { backgroundColor: isDark ? '#201b17' : '#fffbeb', borderColor: '#fef3c7' }]}>
-        <Text style={styles.insightTitle}>Exam Analyst Insight:</Text>
-        <Text style={[styles.insightText, { color: colors.text }]}>{topic.content}</Text>
-      </View>
+          {/* Analyst Insights */}
+          <View style={[styles.insightCard, { backgroundColor: isDark ? '#201b17' : '#fffbeb', borderColor: isDark ? '#332200' : '#fef3c7' }]}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Lightbulb size={18} color={colors.warning} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.insightTitle, { color: colors.warning, fontSize: 14, fontWeight: '700' }]}>
+                  Exam Strategy
+                </Text>
+                <Text style={[styles.insightText, { color: colors.text, lineHeight: 20 }]}>
+                  {topic.content}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </>
+      ) : (
+        // Test Mode - Knowledge Check
+        <KnowledgeTest topic={topic} colors={colors} isDark={isDark} />
+      )}
 
       {/* Topic Action Panel */}
       <View style={[styles.topicActions, { borderTopColor: colors.border }]}>
@@ -615,17 +744,18 @@ function TopicDetails({
             },
           ]}
         >
-          <CheckCircle size={12} color={isCompleted ? colors.success : colors.textMuted} />
+          <CheckCircle size={14} color={isCompleted ? colors.success : colors.textMuted} />
           <Text
             style={[
               styles.btnMarkCompleteText,
               {
                 color: isCompleted ? colors.success : colors.text,
                 fontWeight: isCompleted ? 'bold' : 'normal',
+                fontSize: 13,
               },
             ]}
           >
-            {isCompleted ? 'Marked Confident' : 'Mark Confident'}
+            {isCompleted ? 'Confident ✓' : 'Mark Confident'}
           </Text>
         </TouchableOpacity>
 
@@ -638,10 +768,166 @@ function TopicDetails({
           }}
           style={[styles.btnStartTest, { backgroundColor: colors.primary }]}
         >
-          <Play size={10} color="#fff" fill="#fff" />
-          <Text style={styles.btnStartTestText}>Start Test</Text>
+          <Play size={12} color="#fff" fill="#fff" />
+          <Text style={styles.btnStartTestText}>Quiz</Text>
         </TouchableOpacity>
       </View>
+    </View>
+  );
+}
+
+// Knowledge Test Component - Interactive testing
+function KnowledgeTest({
+  topic,
+  colors,
+  isDark,
+}: {
+  topic: NoteTopic;
+  colors: any;
+  isDark: boolean;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<number[]>([]);
+
+  // Generate simple MCQs from key points
+  const questions = topic.keyPoints.slice(0, 3).map((point, i) => ({
+    id: i,
+    question: `Which of the following relates to: "${topic.keyPoints[i].substring(0, 50)}..."?`,
+    options: [topic.keyPoints[i], topic.keyPoints[(i + 1) % topic.keyPoints.length], 'All of the above', 'None of these'],
+    correct: 0,
+  }));
+
+  if (currentIndex >= questions.length) {
+    const correctCount = answers.filter((ans, i) => ans === questions[i].correct).length;
+    const percentage = Math.round((correctCount / questions.length) * 100);
+
+    return (
+      <View style={{ gap: 16, alignItems: 'center', paddingVertical: 24 }}>
+        <View style={{ alignItems: 'center' }}>
+          <Brain size={48} color={colors.success} opacity={0.8} />
+          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.success, marginTop: 12, marginBottom: 8 }}>
+            {percentage}%
+          </Text>
+          <Text style={{ fontSize: 16, color: colors.text, fontWeight: '600' }}>
+            {percentage >= 70 ? '🎉 Excellent!' : percentage >= 50 ? '👍 Good!' : '📖 Review again'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => {
+            setCurrentIndex(0);
+            setAnswers([]);
+          }}
+          style={{
+            backgroundColor: colors.primary,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 10,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Retake Test</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const q = questions[currentIndex];
+
+  return (
+    <View style={{ gap: 16 }}>
+      <View>
+        <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 8 }}>
+          Question {currentIndex + 1} of {questions.length}
+        </Text>
+        <View style={{ height: 4, backgroundColor: colors.borderAccent, borderRadius: 2, overflow: 'hidden' }}>
+          <View
+            style={{
+              height: '100%',
+              backgroundColor: colors.primary,
+              width: `${((currentIndex + 1) / questions.length) * 100}%`,
+            }}
+          />
+        </View>
+      </View>
+
+      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, lineHeight: 22 }}>
+        {q.question}
+      </Text>
+
+      <View style={{ gap: 10 }}>
+        {q.options.map((opt, i) => {
+          const isSelected = answers[currentIndex] === i;
+          const isCorrect = i === q.correct;
+
+          return (
+            <TouchableOpacity
+              key={i}
+              onPress={() => {
+                const newAnswers = [...answers];
+                newAnswers[currentIndex] = i;
+                setAnswers(newAnswers);
+              }}
+              style={[
+                {
+                  borderRadius: 12,
+                  padding: 14,
+                  borderWidth: 2,
+                  borderColor: isSelected
+                    ? isCorrect
+                      ? colors.success
+                      : colors.danger
+                    : colors.border,
+                  backgroundColor: isSelected
+                    ? isCorrect
+                      ? isDark
+                        ? 'rgba(16, 185, 129, 0.1)'
+                        : '#ecfdf5'
+                      : isDark
+                      ? 'rgba(239, 68, 68, 0.1)'
+                      : '#fee2e2'
+                    : 'transparent',
+                },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: isSelected ? (isCorrect ? colors.success : colors.danger) : colors.border,
+                    backgroundColor: isSelected
+                      ? isCorrect
+                        ? colors.success
+                        : colors.danger
+                      : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {isSelected && <Check size={12} color="#fff" />}
+                </View>
+                <Text style={{ color: colors.text, fontSize: 14, flex: 1 }}>{opt}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <TouchableOpacity
+        onPress={() => setCurrentIndex(currentIndex + 1)}
+        disabled={answers[currentIndex] === undefined}
+        style={{
+          backgroundColor: answers[currentIndex] !== undefined ? colors.primary : colors.borderAccent,
+          paddingVertical: 12,
+          borderRadius: 10,
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ color: answers[currentIndex] !== undefined ? '#fff' : colors.textMuted, fontSize: 14, fontWeight: '600' }}>
+          {currentIndex === questions.length - 1 ? 'See Results' : 'Next Question'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -662,24 +948,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: 16,
   },
   progressInfo: {
     flex: 1,
   },
   progressTitle: {
-    fontSize: 10.5,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   progressSubtitle: {
-    fontSize: 9.5,
-    marginTop: 2,
+    fontSize: 13,
+    marginTop: 4,
   },
   progressRingOuter: {
     position: 'relative',
-    width: 54,
-    height: 54,
+    width: 64,
+    height: 64,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -689,95 +975,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressPercentText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  progressBarBG: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  progressBar: {
-    height: '100%',
+    fontSize: 16,
+    fontWeight: '700',
   },
   btnReset: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 6,
   },
   btnResetText: {
-    fontSize: 9,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '600',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
     marginBottom: 16,
   },
   searchInput: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 14,
     padding: 0,
   },
   horizontalTabs: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
     marginBottom: 16,
   },
   tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
   tabButtonText: {
-    fontSize: 10.5,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '600',
   },
   deskLabel: {
-    fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
+    fontSize: 15,
+    fontWeight: '700',
   },
   deskSub: {
-    fontSize: 9.5,
-    marginTop: 4,
-    lineHeight: 13,
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 18,
   },
   topicsStack: {
     gap: 12,
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    marginBottom: 10,
   },
   emptySearchCard: {
     borderRadius: 16,
-    padding: 24,
+    padding: 32,
     alignItems: 'center',
-    borderStyle: 'dashed',
+    gap: 12,
   },
   emptySearchTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '700',
   },
   emptySearchSub: {
-    fontSize: 10,
+    fontSize: 14,
     textAlign: 'center',
   },
   topicWrapper: {
@@ -788,35 +1062,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    padding: 16,
   },
   importanceTag: {
-    fontSize: 7.5,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   timeTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   timeTagText: {
-    fontSize: 8,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  topicTitle: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   topicTitleText: {
-    fontSize: 12,
-    fontWeight: '900',
-    marginTop: 6,
+    fontSize: 18,
+    fontWeight: '700',
   },
   checkboxCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1,
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -825,62 +1099,85 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   detailsContent: {
-    padding: 14,
-    gap: 12,
+    padding: 16,
+    gap: 14,
+  },
+  modeToggleContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    padding: 4,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  modeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderBottomWidth: 3,
+  },
+  readingSection: {
+    gap: 8,
+  },
+  readingSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   detailSection: {
-    gap: 4,
+    gap: 8,
   },
   sectionLabel: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   overviewText: {
-    fontSize: 10.5,
-    lineHeight: 14,
+    fontSize: 15,
   },
   checklistCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
   },
   checklistHeader: {
-    fontSize: 9.5,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
   },
   checklistItems: {
-    gap: 8,
-    marginTop: 4,
+    gap: 10,
   },
   checkItemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 10,
   },
   pointCheckbox: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
-    borderWidth: 1,
-    marginTop: 1.5,
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    marginTop: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   checkItemText: {
-    fontSize: 10,
-    lineHeight: 14.5,
+    fontSize: 14,
     flex: 1,
   },
   formulasStack: {
-    gap: 8,
+    gap: 10,
   },
   formulaCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
-    gap: 6,
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
   },
   formulaHeader: {
     flexDirection: 'row',
@@ -888,116 +1185,107 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   formulaName: {
-    fontSize: 10.5,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   equationTag: {
-    fontSize: 7.5,
-    color: '#a5b4fc',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-    fontWeight: 'bold',
   },
   equationBox: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
   equationText: {
     fontFamily: 'monospace',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#1e40af',
   },
   formulaAppText: {
-    fontSize: 9.5,
+    fontSize: 13,
   },
   tableBorder: {
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   tableHeaderCol: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   tableHeaderCellText: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   tableCol: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   tableCellText: {
-    fontSize: 9,
-    lineHeight: 12,
+    lineHeight: 16,
   },
   insightCard: {
     borderWidth: 1.5,
-    borderRadius: 16,
-    padding: 10,
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
   },
   insightTitle: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    color: '#b45309',
     textTransform: 'uppercase',
-    marginBottom: 2,
+    letterSpacing: 0.3,
   },
   insightText: {
-    fontSize: 9.5,
-    lineHeight: 13.5,
+    fontSize: 14,
   },
   topicActions: {
     borderTopWidth: 1,
-    paddingTop: 12,
+    paddingTop: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
   },
   btnMarkComplete: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 8,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   btnMarkCompleteText: {
-    fontSize: 9.5,
+    fontWeight: '600',
   },
   btnStartTest: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   btnStartTestText: {
     color: '#fff',
-    fontSize: 9.5,
-    fontWeight: 'bold',
-  },
-  topicTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
   },
   subjectTagText: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
