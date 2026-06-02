@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Smart Prep MCQs",
+    "slug": "exam-topper",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.noor.smartprepmcqs"
+    },
+    "android": {
+      "package": "com.noor.smartprepmcqs"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "smartprepmcqs",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "18c13ae4-1f19-4c31-b8ec-30d014248e45"
+      }
+    },
+    "owner": "noordeveloperrrs-organization"
+  }
+}
