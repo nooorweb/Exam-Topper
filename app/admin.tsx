@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ScrollView,
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
@@ -12,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Text } from '../src/components/common';
 import { useApp } from '../src/context/AppContext';
 import { MCQ } from '../src/types';
 import {

@@ -3,7 +3,8 @@
  * Shows top weak subjects with accuracy bars and a Practice button per area.
  */
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text } from '../common';
 import { AlertTriangle, ChevronRight, TrendingDown } from 'lucide-react-native';
 import type { WeakArea } from '../../services/analytics.service';
 

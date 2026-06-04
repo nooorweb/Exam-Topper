@@ -1,618 +1,603 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
-  ScrollView,
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
-  LayoutAnimation,
-  Platform,
+  FlatList,
+  Dimensions,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { Text, Card } from '../../src/components/common';
 import { useApp } from '../../src/context/AppContext';
 import { VocabWord } from '../../src/types';
 import * as Speech from 'expo-speech';
-import {
-  Search,
-  Bookmark,
-  Volume2,
-  HelpCircle,
-  Check,
-  BookOpen,
-  Layers,
-} from 'lucide-react-native';
+import { Bookmark, Volume2, ChevronLeft, ChevronRight, BookmarkCheck, Sparkles } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { GeminiService } from '../../src/services/gemini.service';
 
+const { width: SW } = Dimensions.get('window');
+const CARD_GAP = 12;
+const CARD_W = SW - 48;
+
+// ─── Word Card (single slide) ─────────────────────────────────────────────────
+function WordCard({
+  word,
+  isDark,
+  isBookmarked,
+  onBookmark,
+}: {
+  word: VocabWord;
+  isDark: boolean;
+  isBookmarked: boolean;
+  onBookmark: () => void;
+}) {
+  const text  = isDark ? '#f4f4f5' : '#1f2937';
+  const muted = isDark ? '#9ca3af' : '#6b7280';
+  const bg    = isDark ? '#121214' : '#ffffff';
+  const border= isDark ? '#1f1f23' : '#e5e7eb';
+
+  return (
+    <View style={[wc.card, { backgroundColor: bg, borderColor: border, width: CARD_W }]}>
+      {/* Header Row: Word & Bookmark Button */}
+      <View style={wc.headerRow}>
+        <Text style={[wc.word, { color: '#6366f1' }]} numberOfLines={1} adjustsFontSizeToFit>
+          {word.word}
+        </Text>
+        <TouchableOpacity
+          onPress={onBookmark}
+          style={[
+            wc.bookmarkBtn,
+            {
+              backgroundColor: isBookmarked
+                ? (isDark ? 'rgba(99,102,241,0.15)' : '#e0e7ff')
+                : (isDark ? '#1c1c1f' : '#f3f4f6'),
+              borderColor: isBookmarked ? '#6366f1' : border,
+            }
+          ]}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark word'}
+        >
+          <Bookmark
+            size={18}
+            color={isBookmarked ? '#6366f1' : muted}
+            fill={isBookmarked ? '#6366f1' : 'transparent'}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Urdu */}
+      {word.urduMeaning ? (
+        <Text style={[wc.urdu, { color: isDark ? '#a5b4fc' : '#6366f1' }]}>
+          {word.urduMeaning}
+        </Text>
+      ) : null}
+
+      {/* Meaning */}
+      <View style={[wc.row, { borderTopColor: border }]}>
+        <Text style={[wc.rowLabel, { color: muted }]}>Meaning</Text>
+        <Text style={[wc.rowVal, { color: text }]}>{word.meaning}</Text>
+      </View>
+
+      {/* Synonyms */}
+      {word.synonyms.length > 0 && (
+        <View style={[wc.row, { borderTopColor: border }]}>
+          <Text style={[wc.rowLabel, { color: muted }]}>Synonyms</Text>
+          <Text style={[wc.rowVal, { color: text }]}>
+            {word.synonyms.slice(0, 4).join('  •  ')}
+          </Text>
+        </View>
+      )}
+
+      {/* Antonyms */}
+      {word.antonyms.length > 0 && (
+        <View style={[wc.row, { borderTopColor: border }]}>
+          <Text style={[wc.rowLabel, { color: muted }]}>Antonyms</Text>
+          <Text style={[wc.rowVal, { color: text }]}>
+            {word.antonyms.slice(0, 4).join('  •  ')}
+          </Text>
+        </View>
+      )}
+
+      {/* Category tag */}
+      {word.category ? (
+        <View style={[wc.catTag, { backgroundColor: isDark ? '#18181f' : '#f0f0ff' }]}>
+          <Text style={[wc.catText, { color: isDark ? '#a5b4fc' : '#6366f1' }]}>
+            {word.category}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const wc = StyleSheet.create({
+  card: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 22,
+    gap: 0,
+    // shadow
+    shadowColor: '#6366f1',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    gap: 10,
+  },
+  word: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    flex: 1,
+  },
+  bookmarkBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  urdu: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 14,
+  },
+  row: {
+    borderTopWidth: 1,
+    paddingTop: 10,
+    marginTop: 10,
+    gap: 4,
+  },
+  rowLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  rowVal: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 19,
+  },
+  catTag: {
+    alignSelf: 'flex-start',
+    marginTop: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  catText: { fontSize: 10, fontWeight: '700' },
+});
+
+// ─── Bookmarked Word Row ──────────────────────────────────────────────────────
+function BookmarkRow({
+  word,
+  isDark,
+  onRemove,
+}: {
+  word: VocabWord;
+  isDark: boolean;
+  onRemove: () => void;
+}) {
+  const text  = isDark ? '#f4f4f5' : '#1f2937';
+  const muted = isDark ? '#9ca3af' : '#6b7280';
+  const bg    = isDark ? '#121214' : '#ffffff';
+  const border= isDark ? '#1f1f23' : '#e5e7eb';
+
+  return (
+    <View style={[bm.row, { backgroundColor: bg, borderColor: border }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[bm.word, { color: '#6366f1' }]}>{word.word}</Text>
+        <Text style={[bm.meaning, { color: muted }]} numberOfLines={2}>
+          {word.meaning}
+        </Text>
+        {word.urduMeaning ? (
+          <Text style={[bm.urdu, { color: isDark ? '#a5b4fc' : '#6366f1' }]}>
+            {word.urduMeaning}
+          </Text>
+        ) : null}
+      </View>
+      <TouchableOpacity
+        onPress={onRemove}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityRole="button"
+        accessibilityLabel="Remove bookmark"
+        style={bm.removeBtn}
+      >
+        <BookmarkCheck size={18} color="#6366f1" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const bm = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: '#6366f1',
+    padding: 14,
+    gap: 10,
+  },
+  word: { fontSize: 15, fontWeight: '700' },
+  meaning: { fontSize: 12, marginTop: 2, lineHeight: 17 },
+  urdu: { fontSize: 12, fontWeight: '600', marginTop: 3 },
+  removeBtn: { padding: 4, marginTop: 2 },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function VocabScreen() {
-  const { vocab, bookmarkWord, currentTheme } = useApp();
+  const { vocab, bookmarkWord, currentTheme, bulkImportVocab } = useApp();
   const isDark = currentTheme === 'dark';
 
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [aiLoading, setAiLoading] = useState(false);
+  const sliderRef = useRef<FlatList>(null);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const handleGenerateAIVocab = async () => {
+    setAiLoading(true);
+    try {
+      const apiKey = await GeminiService.getApiKey();
+      if (!apiKey) {
+        Alert.alert(
+          'API Key Required',
+          'Please go to Settings and add your Gemini API Key first to enable vocabulary generation.',
+          [
+            { text: 'Go to Settings', onPress: () => router.push('/settings') },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        setAiLoading(false);
+        return;
+      }
 
-  // Flashcard focus state
-  const [focusedWord, setFocusedWord] = useState<VocabWord | null>(null);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [ttsPlaying, setTtsPlaying] = useState(false);
+      const generated = await GeminiService.generateDailyVocab();
+      if (!generated || generated.length === 0) {
+        throw new Error('No words were returned by the AI.');
+      }
+
+      const res = bulkImportVocab(JSON.stringify(generated));
+      if (res.success) {
+        Alert.alert('🎉 AI Words Generated!', `Successfully added ${res.count} competitive exam vocabulary words to your list!`);
+        setCurrentIdx(0);
+        setTimeout(() => {
+          sliderRef.current?.scrollToIndex({ index: 0, animated: true });
+        }, 100);
+      } else {
+        throw new Error(res.error || 'Failed to import generated vocabulary.');
+      }
+    } catch (e: any) {
+      console.error(e);
+      Alert.alert('Generation Failed', e.message || 'An unexpected error occurred while generating vocabulary.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const colors = {
-    bg: isDark ? '#09090b' : '#f9fafb',
-    card: isDark ? '#121214' : '#ffffff',
-    text: isDark ? '#f4f4f5' : '#1f2937',
-    textMuted: isDark ? '#9ca3af' : '#6b7280',
-    border: isDark ? '#1f1f23' : '#f3f4f6',
-    borderAccent: isDark ? '#27272a' : '#e5e7eb',
-    primary: '#6366f1',
-    primaryBg: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.06)',
-    success: '#10b981',
-    warning: '#f59e0b',
+    bg:     isDark ? '#09090b' : '#f5f5fa',
+    text:   isDark ? '#f4f4f5' : '#1f2937',
+    muted:  isDark ? '#9ca3af' : '#6b7280',
+    border: isDark ? '#1f1f23' : '#e5e7eb',
+    card:   isDark ? '#121214' : '#ffffff',
   };
 
-  const dynamicStyles = StyleSheet.create({
-    container: {
-      backgroundColor: colors.bg,
-    },
-    card: {
-      backgroundColor: colors.card,
-      borderColor: colors.border,
-      borderWidth: 1,
-    },
-    text: {
-      color: colors.text,
-    },
-    textMuted: {
-      color: colors.textMuted,
-    },
-  });
+  // All vocab words (no filtering — simple slider through everything)
+  const words = vocab;
+  const bookmarked = useMemo(() => vocab.filter((v) => v.isBookmarked), [vocab]);
 
-  // Derive categories
-  const categories = useMemo(() => {
-    const cats = new Set(vocab.map((v) => v.category || 'General Vocabulary'));
-    return ['All', ...Array.from(cats)];
-  }, [vocab]);
+  const currentWord = words[currentIdx] ?? null;
+  const [ttsPlaying, setTtsPlaying] = useState(false);
 
-  // Filter list
-  const filteredVocab = useMemo(() => {
-    return vocab.filter((v) => {
-      const matchesBookmarks = selectedCategory === 'Bookmarks' ? v.isBookmarked : true;
-      const matchesCategory =
-        selectedCategory === 'Bookmarks' || selectedCategory === 'All' || v.category === selectedCategory;
-      const matchesSearch =
-        v.word.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.meaning.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.synonyms.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      return matchesBookmarks && matchesCategory && matchesSearch;
-    });
-  }, [vocab, selectedCategory, searchQuery]);
-
-  // Set initial focused word
-  useEffect(() => {
-    if (filteredVocab.length > 0) {
-      // Find if current focused is still in list
-      const stillExists = filteredVocab.find((v) => v.id === focusedWord?.id);
-      if (!stillExists) {
-        setFocusedWord(filteredVocab[0]);
-        setIsFlipped(false);
-      }
-    } else {
-      setFocusedWord(vocab[0] || null);
-      setIsFlipped(false);
-    }
-  }, [selectedCategory, vocab]);
-
-  const handleSelectWord = (word: VocabWord) => {
-    if (Platform.OS !== 'web') {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
-    setFocusedWord(word);
-    setIsFlipped(false);
+  const goTo = (idx: number) => {
+    const clamped = Math.max(0, Math.min(idx, words.length - 1));
+    setCurrentIdx(clamped);
+    sliderRef.current?.scrollToIndex({ index: clamped, animated: true, viewPosition: 0.5 });
   };
 
-  const handleTTS = async (wordStr: string) => {
-    if (ttsPlaying) return;
+  const handleTTS = async () => {
+    if (!currentWord || ttsPlaying) return;
     setTtsPlaying(true);
     try {
-      await Speech.speak(wordStr, {
+      await Speech.speak(currentWord.word, {
         rate: 0.95,
         onDone: () => setTtsPlaying(false),
         onError: () => setTtsPlaying(false),
       });
-    } catch (e) {
+    } catch {
       setTtsPlaying(false);
     }
   };
 
+  const onScrollEnd = (e: any) => {
+    const offset = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(offset / (CARD_W + CARD_GAP));
+    setCurrentIdx(idx);
+  };
+
   return (
-    <ScrollView style={[styles.container, dynamicStyles.container]} contentContainerStyle={styles.content}>
-      {/* Search Input bar */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Search size={14} color={colors.textMuted} />
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search vocabulary, synonyms, or meanings..."
-          placeholderTextColor={colors.textMuted}
-          style={[styles.searchInput, dynamicStyles.text]}
-        />
+    <ScrollView
+      style={[s.root, { backgroundColor: colors.bg }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={s.content}
+    >
+      {/* ── Header ── */}
+      <View style={s.headerRow}>
+        <View>
+          <Text style={[s.headerTitle, { color: colors.text }]}>Vocabulary</Text>
+          <Text style={[s.headerSub, { color: colors.muted }]}>
+            {words.length} words  •  {bookmarked.length} saved
+          </Text>
+        </View>
+
+        {/* TTS on current card */}
+        {currentWord && (
+          <TouchableOpacity
+            onPress={handleTTS}
+            style={[s.ttsBtn, { backgroundColor: isDark ? '#1c1c1f' : '#e0e7ff' }]}
+            accessibilityRole="button"
+            accessibilityLabel="Pronounce word"
+          >
+            <Volume2 size={16} color="#6366f1" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Horizontal Category Pill Scroll */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.horizontalPills}
-      >
-        {/* Bookmarks Pill */}
-        <TouchableOpacity
-          onPress={() => setSelectedCategory('Bookmarks')}
-          style={[
-            styles.pillButton,
-            {
-              backgroundColor: selectedCategory === 'Bookmarks' ? colors.primary : colors.card,
-              borderColor: selectedCategory === 'Bookmarks' ? colors.primary : colors.border,
+      {/* ── AI VOCAB GENERATOR BANNER ── */}
+      <Card isDark={isDark} style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 12, padding: 14, borderRadius: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Sparkles size={14} color="#6366f1" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Daily AI Vocabulary</Text>
+            </View>
+            <Text style={{ fontSize: 11, color: colors.muted, lineHeight: 16 }}>
+              Generate 30 high-yield exam words matching your competitive exam target.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleGenerateAIVocab}
+            disabled={aiLoading}
+            style={{
+              backgroundColor: '#6366f1',
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+              borderRadius: 10,
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 6,
-            },
-          ]}
-        >
-          <Bookmark
-            size={12}
-            color={selectedCategory === 'Bookmarks' ? '#ffffff' : (isDark ? '#d1d5db' : '#595959')}
-            fill={selectedCategory === 'Bookmarks' ? '#ffffff' : 'transparent'}
-          />
-          <Text style={[styles.pillText, { color: selectedCategory === 'Bookmarks' ? '#ffffff' : (isDark ? '#d1d5db' : '#595959') }]}>
-            Bookmarks
-          </Text>
-        </TouchableOpacity>
-
-        {categories.map((cat) => {
-          const isSelected = selectedCategory === cat;
-          return (
-            <TouchableOpacity
-              key={cat}
-              onPress={() => setSelectedCategory(cat)}
-              style={[
-                styles.pillButton,
-                {
-                  backgroundColor: isSelected ? colors.primary : colors.card,
-                  borderColor: isSelected ? colors.primary : colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.pillText, { color: isSelected ? '#ffffff' : (isDark ? '#d1d5db' : '#595959') }]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* FLASHCARD INTERACTIVE FLIP MECHANISM */}
-      {focusedWord ? (
-        <View style={styles.flashcardWrapper}>
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => setIsFlipped(!isFlipped)}
-            style={[
-              styles.flashcard,
-              dynamicStyles.card,
-              isFlipped && {
-                backgroundColor: isDark ? 'rgba(99, 102, 241, 0.08)' : '#e0e7ff',
-                borderColor: colors.primary,
-              },
-            ]}
+              gap: 4,
+              opacity: aiLoading ? 0.7 : 1,
+            }}
           >
-            {/* Card Header Status Indicator */}
-            <View style={[styles.flashcardHeader, { borderBottomColor: isDark ? '#27272a' : '#f3f4f6' }]}>
-              <Text style={[styles.flashcardCategory, dynamicStyles.textMuted]}>
-                {focusedWord.category || 'General Vocabulary'}
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => bookmarkWord(focusedWord.id)}
-                style={styles.btnBookmark}
-              >
-                <Bookmark
-                  size={16}
-                  color={focusedWord.isBookmarked ? colors.primary : colors.textMuted}
-                  fill={focusedWord.isBookmarked ? colors.primary : 'transparent'}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Simulated Flip Content */}
-            {!isFlipped ? (
-              // Front Side
-              <View style={styles.cardFront}>
-                <Text style={[styles.wordText, dynamicStyles.text]}>{focusedWord.word}</Text>
-                {focusedWord.urduMeaning && (
-                  <Text style={[styles.urduText, { color: colors.primary }]}>
-                    {focusedWord.urduMeaning}
-                  </Text>
-                )}
-
-                <View style={styles.ttsRow}>
-                  <TouchableOpacity
-                    onPress={() => handleTTS(focusedWord.word)}
-                    style={[styles.btnTTS, { backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6' }]}
-                  >
-                    <Volume2 size={13} color={colors.text} />
-                  </TouchableOpacity>
-                  <Text style={[styles.ttsLabel, dynamicStyles.textMuted]}>Pronounce Word</Text>
-                </View>
-              </View>
+            {aiLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
             ) : (
-              // Back Side
-              <View style={styles.cardBack}>
-                <Text style={styles.backLabel}>MEANING:</Text>
-                <Text style={[styles.meaningText, dynamicStyles.text]}>{focusedWord.meaning}</Text>
-
-                {focusedWord.urduMeaning && (
-                  <View style={[styles.backDivider, { borderTopColor: isDark ? '#1c1c1f' : '#e5e7eb' }]}>
-                    <Text style={styles.backLabel}>URDU / اردو:</Text>
-                    <Text style={[styles.urduBackText, { color: colors.primary }]}>
-                      {focusedWord.urduMeaning}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Synonyms & Antonyms */}
-                <View style={styles.synAntGrid}>
-                  <View style={styles.synAntCol}>
-                    <Text style={styles.backLabel}>Synonyms</Text>
-                    <Text style={[styles.synAntVal, dynamicStyles.text]} numberOfLines={1}>
-                      {focusedWord.synonyms.slice(0, 3).join(', ') || 'N/A'}
-                    </Text>
-                  </View>
-                  <View style={styles.synAntCol}>
-                    <Text style={styles.backLabel}>Antonyms</Text>
-                    <Text style={[styles.synAntVal, dynamicStyles.text]} numberOfLines={1}>
-                      {focusedWord.antonyms.slice(0, 3).join(', ') || 'N/A'}
-                    </Text>
-                  </View>
-                </View>
-
-                {focusedWord.example && (
-                  <View style={[styles.exampleBox, { backgroundColor: isDark ? 'rgba(99,102,241,0.06)' : '#fff' }]}>
-                    <Text style={[styles.exampleText, dynamicStyles.textMuted]}>
-                      <Text style={{ fontWeight: 'bold', color: colors.primary }}>Ex: </Text>
-                      &ldquo;{focusedWord.example}&rdquo;
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <>
+                <Sparkles size={12} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>Generate AI</Text>
+              </>
             )}
-
-            {/* Card Footer prompt */}
-            <View style={[styles.cardFooter, { borderTopColor: isDark ? '#27272a' : '#f3f4f6' }]}>
-              <Text style={[styles.footerPromptText, dynamicStyles.textMuted]}>
-                {isFlipped ? 'Tap to view Front Word' : 'Tap to uncover Detail Meaning'}
-              </Text>
-            </View>
           </TouchableOpacity>
         </View>
-      ) : null}
+      </Card>
 
-      {/* Vocabulary Deck List */}
-      <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>
-        Vocabulary Deck — {filteredVocab.length} Words
-      </Text>
+      {/* ── Word Slider ── */}
+      {words.length > 0 ? (
+        <>
+          <FlatList
+            ref={sliderRef}
+            data={words}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CARD_W + CARD_GAP}
+            decelerationRate="fast"
+            snapToAlignment="center"
+            onMomentumScrollEnd={onScrollEnd}
+            renderItem={({ item }) => (
+              <WordCard
+                word={item}
+                isDark={isDark}
+                isBookmarked={item.isBookmarked}
+                onBookmark={() => bookmarkWord(item.id)}
+              />
+            )}
+            style={s.slider}
+            contentContainerStyle={{ paddingHorizontal: 24, gap: CARD_GAP }}
+            getItemLayout={(_, index) => ({
+              length: CARD_W + CARD_GAP,
+              offset: (CARD_W + CARD_GAP) * index,
+              index,
+            })}
+          />
 
-      {filteredVocab.length === 0 ? (
-        <View style={[styles.emptyCard, dynamicStyles.card]}>
-          <HelpCircle size={32} color={colors.textMuted} />
-          <Text style={[styles.emptyTitle, dynamicStyles.text]}>No matching words found</Text>
-          <Text style={[styles.emptySubtitle, dynamicStyles.textMuted]}>
-            Try modifying search strings or check bookmarks tags.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.deckList}>
-          {filteredVocab.map((w) => {
-            const isSelected = focusedWord?.id === w.id;
-            return (
-              <TouchableOpacity
-                key={w.id}
-                onPress={() => handleSelectWord(w)}
-                style={[
-                  styles.deckItem,
-                  dynamicStyles.card,
-                  isSelected && {
-                    borderColor: colors.primary,
-                    borderWidth: 2,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[styles.deckWord, dynamicStyles.text]}>{w.word}</Text>
-                    <View style={[styles.deckCategoryBadge, { backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6' }]}>
-                      <Text style={[styles.deckCategoryText, dynamicStyles.textMuted]}>
-                        {w.category || 'Vocab'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.deckMeaning, dynamicStyles.textMuted]} numberOfLines={1}>
-                    {w.meaning}
-                  </Text>
-                  {w.urduMeaning && (
-                    <Text style={[styles.deckUrdu, { color: colors.primary }]}>{w.urduMeaning}</Text>
-                  )}
-                </View>
+          {/* Controls row */}
+          <View style={s.controls}>
+            <TouchableOpacity
+              onPress={() => goTo(currentIdx - 1)}
+              disabled={currentIdx === 0}
+              style={[
+                s.navBtn,
+                {
+                  backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6',
+                  opacity: currentIdx === 0 ? 0.3 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Previous word"
+            >
+              <ChevronLeft size={20} color={colors.text} />
+            </TouchableOpacity>
 
-                <View style={styles.deckItemActions}>
-                  <TouchableOpacity
-                    onPress={() => bookmarkWord(w.id)}
-                    style={styles.itemActionBtn}
-                  >
-                    <Bookmark
-                      size={14}
-                      color={w.isBookmarked ? colors.primary : colors.textMuted}
-                      fill={w.isBookmarked ? colors.primary : 'transparent'}
+            {/* Dot indicator */}
+            <View style={s.dotsRow}>
+              {words.length <= 20
+                ? words.map((_, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        s.dot,
+                        {
+                          backgroundColor:
+                            i === currentIdx ? '#6366f1' : (isDark ? '#27272a' : '#d1d5db'),
+                          width: i === currentIdx ? 18 : 6,
+                        },
+                      ]}
                     />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      handleSelectWord(w);
-                      setIsFlipped(true);
-                    }}
-                    style={styles.itemActionBtn}
-                  >
-                    <BookOpen size={14} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                  ))
+                : (
+                  <Text style={[s.counterText, { color: colors.muted }]}>
+                    {currentIdx + 1} / {words.length}
+                  </Text>
+                )
+              }
+            </View>
+
+            <TouchableOpacity
+              onPress={() => goTo(currentIdx + 1)}
+              disabled={currentIdx >= words.length - 1}
+              style={[
+                s.navBtn,
+                s.navBtnRight,
+                {
+                  backgroundColor: '#6366f1',
+                  opacity: currentIdx >= words.length - 1 ? 0.3 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Next word"
+            >
+              <ChevronRight size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : (
+        <View style={[s.emptyBox, { borderColor: colors.border }]}>
+          <Text style={[s.emptyText, { color: colors.muted }]}>No vocabulary loaded yet.</Text>
         </View>
+      )}
+
+      {/* ── Saved Words List ── */}
+      {bookmarked.length > 0 && (
+        <>
+          <View style={[s.sectionHeader, { borderTopColor: colors.border }]}>
+            <BookmarkCheck size={13} color="#6366f1" />
+            <Text style={[s.sectionTitle, { color: colors.muted }]}>
+              SAVED WORDS — {bookmarked.length}
+            </Text>
+          </View>
+
+          <View style={s.bookmarkList}>
+            {bookmarked.map((w) => (
+              <BookmarkRow
+                key={w.id}
+                word={w}
+                isDark={isDark}
+                onRemove={() => bookmarkWord(w.id)}
+              />
+            ))}
+          </View>
+        </>
       )}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-    gap: 16,
-  },
-  searchContainer: {
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root: { flex: 1 },
+  content: { paddingBottom: 40 },
+
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
-    marginBottom: 16,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    padding: 0,
-  },
-  tabsWrapper: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    padding: 3,
-    marginBottom: 12,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  tabText: {
-    fontSize: 13,
-  },
-  horizontalPills: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  pillButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  pillText: {
-    fontSize: 12,
-    fontWeight: '500',
-    textTransform: 'none',
-  },
-  flashcardWrapper: {
-    marginBottom: 24,
-  },
-  flashcardPrompt: {
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 0,
-    textAlign: 'center',
-    marginBottom: 8,
-    textTransform: 'none',
-  },
-  flashcard: {
-    borderRadius: 16,
-    padding: 24,
-    minHeight: 280,
     justifyContent: 'space-between',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  flashcardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 12,
   },
-  flashcardCategory: {
-    fontSize: 12,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-  },
-  btnBookmark: {
-    padding: 6,
-  },
-  cardFront: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 30,
-  },
-  wordText: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  urduText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  ttsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
-  },
-  btnTTS: {
-    padding: 8,
-    borderRadius: 10,
-  },
-  ttsLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  cardBack: {
-    paddingVertical: 12,
-  },
-  backLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#9ca3af',
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  meaningText: {
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-  backDivider: {
-    borderTopWidth: 1,
-    borderStyle: 'dashed',
-    marginTop: 12,
-    paddingTop: 12,
-  },
-  urduBackText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  synAntGrid: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 12,
-  },
-  synAntCol: {
-    flex: 1,
-  },
-  synAntVal: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  exampleBox: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: 'rgba(128,128,128,0.1)',
-  },
-  exampleText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    lineHeight: 16,
-  },
-  cardFooter: {
-    borderTopWidth: 1,
-    paddingTop: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerPromptText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 0,
-    marginBottom: 14,
-    marginTop: 8,
-  },
-  emptyCard: {
-    borderRadius: 16,
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  deckList: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  deckItem: {
+  headerTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  headerSub: { fontSize: 12, fontWeight: '500', marginTop: 2 },
+  ttsBtn: {
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  slider: { flexGrow: 0 },
+
+  controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  deckWord: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  deckCategoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  deckCategoryText: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  deckMeaning: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  deckUrdu: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 3,
-  },
-  deckItemActions: {
-    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginTop: 12,
     gap: 8,
   },
-  itemActionBtn: {
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(128,128,128,0.05)',
+  navBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBtnRight: {},
+
+  dotsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  counterText: { fontSize: 13, fontWeight: '700' },
+
+  emptyBox: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: { fontSize: 14, fontWeight: '500' },
+
+  // Bookmarked list
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  bookmarkList: {
+    paddingHorizontal: 16,
+    gap: 8,
   },
 });

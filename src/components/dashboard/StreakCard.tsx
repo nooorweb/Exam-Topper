@@ -3,7 +3,8 @@
  * Shows current streak, longest streak, and a 7-day activity calendar dot strip.
  */
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '../common';
 import { Flame, TrendingUp, Calendar } from 'lucide-react-native';
 
 interface StreakCardProps {

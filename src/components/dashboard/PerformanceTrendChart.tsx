@@ -4,7 +4,8 @@
  * No external chart library needed — drawn with SVG via react-native-svg.
  */
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '../common';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import Svg, { Polyline, Circle, Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 import type { PerformanceTrendPoint } from '../../services/analytics.service';

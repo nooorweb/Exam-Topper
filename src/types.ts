@@ -37,6 +37,7 @@ export interface QuizSession {
   totalQuestions: number;
   category: string;
   mode?: 'practice' | 'exam';
+  isAiGenerated?: boolean; // true for Gemini AI-powered quiz sessions
   timePerQuestion?: number; // 0 = no timer; positive = seconds per question
   answers: {
     mcqId: string;
@@ -44,6 +45,7 @@ export interface QuizSession {
     selectedOption: number;
     correctOption: number;
     isCorrect: boolean;
+    category?: string; // included so AI quizzes can track weak areas without main MCQ pool lookup
   }[];
 }
 

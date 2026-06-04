@@ -10,7 +10,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -19,7 +18,8 @@ import {
   Animated,
   Easing,
   Dimensions,
-  TextInput,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
 } from 'react-native';
 import {
@@ -45,6 +45,7 @@ import { useApp } from '../../context/AppContext';
 import { UserService } from '../../services/user.service';
 import { supabase } from '../../lib/supabase';
 import { DEFAULT_MCQS, DEFAULT_VOCAB } from '../../data/defaultData';
+import { Button, Input, Text } from '../common';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -119,49 +120,7 @@ const DAILY_GOALS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 
-const ScaleButton: React.FC<{
-  onPress: () => void;
-  style: any;
-  children: React.ReactNode;
-  disabled?: boolean;
-  accessibilityRole?: 'button';
-}> = ({ onPress, style, children, disabled, accessibilityRole }) => {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.95,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 5,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 5,
-    }).start();
-  };
-
-  return (
-    <Animated.View style={{ transform: [{ scale }], width: '100%' }}>
-      <TouchableOpacity
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled}
-        activeOpacity={0.85}
-        style={style}
-        accessibilityRole={accessibilityRole}
-      >
-        {children}
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
+// ScaleButton removed — using common Button component below
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -361,22 +320,23 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </View>
 
               {/* Option 1: Create Account / Sign In */}
-              <ScaleButton
+              <Button
+                label="Create Account / Sign In"
                 onPress={() => { setShowAuthForm(true); setAuthMode('signUp'); }}
-                style={[styles.ctaBtn, { backgroundColor: colors.primary, marginTop: 12 }]}
-              >
-                <Text style={styles.ctaBtnText}>Create Account / Sign In</Text>
-                <ArrowRight size={18} color="#fff" />
-              </ScaleButton>
+                isDark={isDark}
+                variant="primary"
+                iconRight={<ArrowRight size={18} color="#fff" />}
+                style={{ marginTop: 12 }}
+              />
 
               {/* Option 2: Proceed as Guest */}
-              <ScaleButton
+              <Button
+                label="Proceed as Guest"
                 onPress={() => animateStep(1)}
-                style={[styles.ctaBtnSecondary, { borderColor: colors.primary, borderWidth: 1.5 }]}
-              >
-                <Text style={[styles.ctaBtnSecondaryText, { color: colors.primary }]}>Proceed as Guest</Text>
-                <ChevronRight size={18} color={colors.primary} />
-              </ScaleButton>
+                isDark={isDark}
+                variant="outline"
+                iconRight={<ChevronRight size={18} color={colors.primary} />}
+              />
 
               {/* Skip all */}
               <TouchableOpacity onPress={() => handleFinish(true)} style={styles.skipAllBtn}>
@@ -386,100 +346,91 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </TouchableOpacity>
             </View>
 
-            {/* Auth Form Panel */}
-            <View style={{ width: contentWidth, gap: 14 }}>
-              {/* Back Button */}
-              <TouchableOpacity 
-                onPress={() => { setShowAuthForm(false); setAuthError(null); }} 
-                style={styles.backLink}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <ChevronLeft size={16} color={colors.primary} />
-                <Text style={[styles.backLinkText, { color: colors.primary }]}>Back</Text>
-              </TouchableOpacity>
+            {/* Auth Form Panel — wrapped in KeyboardAvoidingView */}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+              style={{ width: contentWidth }}
+            >
+              <View style={{ gap: 14 }}>
+                {/* Back Button */}
+                <TouchableOpacity
+                  onPress={() => { setShowAuthForm(false); setAuthError(null); }}
+                  style={styles.backLink}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <ChevronLeft size={16} color={colors.primary} />
+                  <Text style={[styles.backLinkText, { color: colors.primary }]}>Back</Text>
+                </TouchableOpacity>
 
-              <View style={styles.welcomeCopy}>
-                <Text style={[styles.welcomeTitle, { color: colors.text, fontSize: 24 }]}>
-                  {authMode === 'signIn' ? 'Welcome Back!' : 'Create Account'}
-                </Text>
-                <Text style={[styles.welcomeSub, { color: colors.textMuted, fontSize: 13 }]}>
-                  {authMode === 'signIn' 
-                    ? 'Sign in to restore your stats and sync attempts to the cloud.' 
-                    : 'Create an account to backup streaks, weak areas, and attempts.'}
-                </Text>
-              </View>
-
-              {authError && (
-                <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>{authError}</Text>
+                <View style={styles.welcomeCopy}>
+                  <Text style={[styles.welcomeTitle, { color: colors.text, fontSize: 24 }]}>
+                    {authMode === 'signIn' ? 'Welcome Back!' : 'Create Account'}
+                  </Text>
+                  <Text style={[styles.welcomeSub, { color: colors.textMuted, fontSize: 13 }]}>
+                    {authMode === 'signIn'
+                      ? 'Sign in to restore your stats and sync attempts to the cloud.'
+                      : 'Create an account to backup streaks, weak areas, and attempts.'}
+                  </Text>
                 </View>
-              )}
 
-              {/* Email input field */}
-              <View style={styles.inputWrapper}>
-                <View style={[styles.inputContainer, { borderColor: colors.border, backgroundColor: isDark ? '#121214' : '#fff' }]}>
-                  <Mail size={16} color={colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="Email Address"
-                    placeholderTextColor={colors.textMuted}
-                    style={[styles.textInput, { color: colors.text }]}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    accessibilityLabel="Email input field"
-                  />
-                </View>
-              </View>
-
-              {/* Password input field */}
-              <View style={styles.inputWrapper}>
-                <View style={[styles.inputContainer, { borderColor: colors.border, backgroundColor: isDark ? '#121214' : '#fff' }]}>
-                  <Lock size={16} color={colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Password"
-                    placeholderTextColor={colors.textMuted}
-                    style={[styles.textInput, { color: colors.text }]}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    accessibilityLabel="Password input field"
-                  />
-                </View>
-              </View>
-
-              {/* Submit Button */}
-              <ScaleButton
-                onPress={handleAuthSubmit}
-                disabled={authLoading}
-                style={[styles.ctaBtn, { backgroundColor: colors.primary, marginTop: 8 }]}
-                accessibilityRole="button"
-              >
-                {authLoading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.ctaBtnText}>
-                      {authMode === 'signIn' ? 'Sign In' : 'Create Account'}
-                    </Text>
-                    <ArrowRight size={18} color="#fff" />
-                  </>
+                {authError && (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{authError}</Text>
+                  </View>
                 )}
-              </ScaleButton>
 
-              {/* Switch Auth mode */}
-              <TouchableOpacity 
-                onPress={() => { setAuthMode(authMode === 'signIn' ? 'signUp' : 'signIn'); setAuthError(null); }}
-                style={styles.switchAuthBtn}
-              >
-                <Text style={[styles.switchAuthText, { color: colors.primary }]}>
-                  {authMode === 'signIn' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                {/* Email input */}
+                <Input
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email Address"
+                  isDark={isDark}
+                  icon={<Mail size={16} color={colors.textMuted} />}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  accessibilityLabel="Email input field"
+                />
+
+                {/* Password input */}
+                <Input
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  isDark={isDark}
+                  icon={<Lock size={16} color={colors.textMuted} />}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleAuthSubmit}
+                  accessibilityLabel="Password input field"
+                />
+
+                {/* Submit */}
+                <Button
+                  label={authMode === 'signIn' ? 'Sign In' : 'Create Account'}
+                  onPress={handleAuthSubmit}
+                  isDark={isDark}
+                  loading={authLoading}
+                  variant="primary"
+                  iconRight={<ArrowRight size={18} color="#fff" />}
+                  style={{ marginTop: 4 }}
+                />
+
+                {/* Switch mode */}
+                <TouchableOpacity
+                  onPress={() => { setAuthMode(authMode === 'signIn' ? 'signUp' : 'signIn'); setAuthError(null); }}
+                  style={styles.switchAuthBtn}
+                >
+                  <Text style={[styles.switchAuthText, { color: colors.primary }]}>
+                    {authMode === 'signIn' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
           </Animated.View>
         </View>
       </Animated.View>

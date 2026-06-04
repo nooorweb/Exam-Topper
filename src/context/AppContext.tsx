@@ -146,7 +146,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Vocab loading
         const storedVocab = await AsyncStorage.getItem('smart_prep_vocab');
         if (storedVocab) {
-          setVocab(JSON.parse(storedVocab));
+          const parsed: VocabWord[] = JSON.parse(storedVocab);
+          const parsedIds = new Set(parsed.map(w => w.id));
+          let hasNewWords = false;
+          DEFAULT_VOCAB.forEach((word) => {
+            if (!parsedIds.has(word.id)) {
+              parsed.push(word);
+              hasNewWords = true;
+            }
+          });
+          if (hasNewWords) {
+            await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(parsed));
+          }
+          setVocab(parsed);
         } else {
           setVocab(DEFAULT_VOCAB);
           await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(DEFAULT_VOCAB));
@@ -355,8 +367,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sessionData.answers.forEach((ans) => {
       if (!ans.isCorrect) {
         const mcq = mcqs.find((m) => m.id === ans.mcqId);
-        if (mcq) {
-          catMap[mcq.category] = (catMap[mcq.category] || 0) + 1;
+        const cat = mcq?.category || ans.category;
+        if (cat) {
+          catMap[cat] = (catMap[cat] || 0) + 1;
         }
       }
     });

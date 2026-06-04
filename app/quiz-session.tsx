@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -10,6 +9,8 @@ import {
   BackHandler,
   Animated,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Text } from '../src/components/common';
 import { useApp } from '../src/context/AppContext';
 import { MCQ, QuizSession } from '../src/types';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -23,8 +24,11 @@ import {
   AlertTriangle,
   ChevronRight,
   BookOpen,
+  Sparkles,
 } from 'lucide-react-native';
 import { impactLight, notificationSuccess, notificationError } from '../src/utils/haptics';
+
+export const AI_QUIZ_TEMP_KEY = 'smart_prep_ai_quiz_temp';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,6 +56,33 @@ export default function QuizSessionScreen() {
   const questionsLimit = parseInt(params.limit as string) || 10;
   const negativeMarking = parseFloat(params.negativeMarking as string) || 0;
   const difficultyParam = (params.difficulty as string) || 'All';
+  // AI quiz mode: questions are loaded from a temp AsyncStorage key
+  const isAiMode = params.aiQuizMode === 'true';
+  const aiCategory = (params.aiCategory as string) || 'AI Mock';
+
+  const [aiMCQs, setAiMCQs] = useState<MCQ[]>([]);
+  const [aiLoading, setAiLoading] = useState(isAiMode);
+
+  // ── Load AI MCQs from temp storage (only in AI mode) ────────────────────
+  useEffect(() => {
+    if (!isAiMode) return;
+    const loadAiMCQs = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(AI_QUIZ_TEMP_KEY);
+        if (raw) {
+          const parsed: MCQ[] = JSON.parse(raw);
+          setAiMCQs(parsed);
+          // Clear temp key so it doesn't persist or contaminate anything
+          await AsyncStorage.removeItem(AI_QUIZ_TEMP_KEY);
+        }
+      } catch (e) {
+        console.error('Failed to load AI quiz from temp storage', e);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    loadAiMCQs();
+  }, []);
 
   // ── Theme colours ────────────────────────────────────────────────────────
   const C = {
@@ -68,10 +99,18 @@ export default function QuizSessionScreen() {
     dangerBg: isDark ? 'rgba(239,68,68,0.15)' : '#fef2f2',
     warning: '#f59e0b',
     neutral: isDark ? '#27272a' : '#f3f4f6',
+    aiAccent: '#10b981',
   };
 
   // ── Filter & shuffle session MCQs ────────────────────────────────────────
+  // AI mode uses questions from temp storage; standard mode uses the local MCQ pool
   const sessionMCQs = useMemo<MCQ[]>(() => {
+    if (isAiMode) return aiMCQs; // populated from temp AsyncStorage
+    const customIds = params.customMCQIds as string;
+    if (customIds) {
+      const ids = customIds.split(',');
+      return mcqs.filter(m => ids.includes(m.id));
+    }
     let pool = [...mcqs];
     if (!isMixed) pool = pool.filter(m => m.category === categoryParam);
     if (difficultyParam === 'Conceptual')
@@ -79,7 +118,7 @@ export default function QuizSessionScreen() {
     else if (difficultyParam === 'High Repeats')
       pool = pool.filter(m => m.isRepeated === true);
     return pool.sort(() => 0.5 - Math.random()).slice(0, questionsLimit);
-  }, [mcqs, categoryParam, isMixed, questionsLimit, difficultyParam]);
+  }, [isAiMode, aiMCQs, mcqs, categoryParam, isMixed, questionsLimit, difficultyParam, params.customMCQIds]);
 
   // ── Quiz state ───────────────────────────────────────────────────────────
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -169,17 +208,22 @@ export default function QuizSessionScreen() {
         // Session complete
         setAnswers(updatedAnswers);
         const scoreCount = updatedAnswers.filter(a => a.isCorrect).length;
+        const sessionCategory = isAiMode
+          ? `AI Mock · ${aiCategory}`
+          : isMixed ? 'Mixed Practice' : categoryParam;
         saveQuizSession({
           totalQuestions: sessionMCQs.length,
           score: scoreCount,
-          category: isMixed ? 'Mixed Practice' : categoryParam,
+          category: sessionCategory,
           timeSpent: timeSpent,
+          isAiGenerated: isAiMode,
           answers: updatedAnswers.map(a => ({
             mcqId: a.mcqId,
             question: a.question,
             selectedOption: a.selectedOption,
             correctOption: a.correctOption,
             isCorrect: a.isCorrect,
+            category: a.category, // pass through for AI weak-area tracking
           })),
           mode: 'exam',
         });
@@ -187,6 +231,21 @@ export default function QuizSessionScreen() {
       }
     }, 650);
   };
+
+  // ─── AI loading state ───────────────────────────────────────────────────
+  if (aiLoading) {
+    return (
+      <SafeAreaView style={[s.fill, { backgroundColor: C.bg }]}>
+        <View style={s.emptyBox}>
+          <Sparkles size={44} color={C.success} />
+          <Text style={[s.emptyTitle, { color: C.text }]}>Loading AI Quiz…</Text>
+          <Text style={[s.emptyBody, { color: C.textMuted }]}>
+            Preparing your Gemini-generated questions. This only takes a moment.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // ─── Empty state ────────────────────────────────────────────────────────
   if (sessionMCQs.length === 0) {
@@ -196,8 +255,9 @@ export default function QuizSessionScreen() {
           <AlertTriangle size={44} color={C.warning} />
           <Text style={[s.emptyTitle, { color: C.text }]}>No Questions Found</Text>
           <Text style={[s.emptyBody, { color: C.textMuted }]}>
-            Not enough MCQs in "{isMixed ? 'Mixed' : categoryParam}" with those settings.
-            Try adjusting difficulty or adding questions.
+            {isAiMode
+              ? 'The AI quiz could not be loaded. Please try generating again from the Quiz tab.'
+              : `Not enough MCQs in "${isMixed ? 'Mixed' : categoryParam}" with those settings. Try adjusting difficulty or adding questions.`}
           </Text>
           <TouchableOpacity onPress={() => router.back()} style={[s.btnAction, { backgroundColor: C.primary }]}>
             <Text style={s.btnActionText}>Go Back</Text>
@@ -462,8 +522,9 @@ export default function QuizSessionScreen() {
             </View>
           )}
           {currentMCQ.isRepeated && (
-            <View style={[s.repeatBadge, { backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7' }]}>
-              <Text style={[s.repeatBadgeText, { color: '#b45309' }]}>🔁 Repeated</Text>
+            <View style={[s.repeatBadge, { backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+              <RotateCcw size={10} color="#b45309" />
+              <Text style={[s.repeatBadgeText, { color: '#b45309' }]}>Repeated</Text>
             </View>
           )}
         </View>

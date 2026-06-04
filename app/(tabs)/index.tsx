@@ -2,15 +2,18 @@ import React, { useMemo, useState, useRef } from 'react';
 import {
   ScrollView,
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
+import { Text, Card, SectionHeader } from '../../src/components/common';
 import { useApp } from '../../src/context/AppContext';
+import { GeminiService } from '../../src/services/gemini.service';
 import {
   Award,
   Flame,
@@ -25,6 +28,7 @@ import {
   ChevronRight,
   BarChart3,
   Sparkles,
+  Target,
 } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import ViewShot, { captureRef } from 'react-native-view-shot';
@@ -39,6 +43,75 @@ import StreakCard from '../../src/components/dashboard/StreakCard';
 import WeakAreasCard from '../../src/components/dashboard/WeakAreasCard';
 import PerformanceTrendChart from '../../src/components/dashboard/PerformanceTrendChart';
 import SuggestedQuizCard from '../../src/components/dashboard/SuggestedQuizCard';
+
+const SUBJECT_CONFIGS: Record<string, { label: string; color: string }> = {
+  'English': { label: 'ENG', color: '#3b82f6' },
+  'General Knowledge': { label: 'GK', color: '#f97316' },
+  'Pakistan Studies': { label: 'PAK', color: '#ef4444' },
+  'Computer Science': { label: 'CS', color: '#a855f7' },
+  'Mathematics': { label: 'MATH', color: '#10b981' },
+  'Islamiat': { label: 'ISL', color: '#06b6d4' },
+};
+
+const renderMarkdownText = (markdownText: string, colors: any) => {
+  const lines = markdownText.split('\n');
+  return lines.map((line, i) => {
+    // 1. Heading 1 / 2 / 3
+    if (line.startsWith('#')) {
+      const headingText = line.replace(/^#+\s*/, '');
+      return (
+        <Text key={i} style={{ fontSize: 16, fontWeight: 'bold', color: '#6366f1', marginTop: 16, marginBottom: 6 }}>
+          {headingText}
+        </Text>
+      );
+    }
+    // 2. Bold bullet points (e.g., * **Title**: description)
+    if (line.trim().startsWith('*') || line.trim().startsWith('-')) {
+      const cleaned = line.trim().substring(1).trim();
+      const boldParts = cleaned.split('**');
+      if (boldParts.length >= 3) {
+        return (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginVertical: 4, paddingLeft: 8 }}>
+            <Text style={{ color: colors.primary, marginRight: 6 }}>•</Text>
+            <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: colors.text }}>
+              <Text style={{ fontWeight: 'bold', color: colors.text }}>{boldParts[1]}</Text>
+              {boldParts.slice(2).join('')}
+            </Text>
+          </View>
+        );
+      }
+      return (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginVertical: 4, paddingLeft: 8 }}>
+          <Text style={{ color: colors.primary, marginRight: 6 }}>•</Text>
+          <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: colors.text }}>{cleaned}</Text>
+        </View>
+      );
+    }
+    // 3. Bold inline text (e.g. **text**)
+    if (line.includes('**')) {
+      const boldParts = line.split('**');
+      return (
+        <Text key={i} style={{ fontSize: 13, lineHeight: 20, color: colors.text, marginVertical: 4 }}>
+          {boldParts.map((part, index) => {
+            const isBold = index % 2 === 1;
+            return (
+              <Text key={index} style={isBold ? { fontWeight: 'bold' } : {}}>
+                {part}
+              </Text>
+            );
+          })}
+        </Text>
+      );
+    }
+    // 4. Standard paragraph
+    if (line.trim() === '') return <View key={i} style={{ height: 8 }} />;
+    return (
+      <Text key={i} style={{ fontSize: 13, lineHeight: 20, color: colors.text, marginVertical: 4 }}>
+        {line}
+      </Text>
+    );
+  });
+};
 
 export default function DashboardScreen() {
   const {
@@ -59,6 +132,10 @@ export default function DashboardScreen() {
   const [simulatedOffline, setSimulatedOffline] = useState(false);
   const [completedTopicIds, setCompletedTopicIds] = useState<string[]>([]);
   const [examFocus, setExamFocus] = useState<string>('General');
+  const [isGeminiActive, setIsGeminiActive] = useState(false);
+  const [aiCoachLoading, setAiCoachLoading] = useState(false);
+  const [coachAnalysisText, setCoachAnalysisText] = useState('');
+  const [showCoachModal, setShowCoachModal] = useState(false);
 
   // ── Analytics & Recommendations ──────────────────────────────────────────
   const {
@@ -71,7 +148,7 @@ export default function DashboardScreen() {
 
   const { suggested } = useRecommendations(mcqs, stats);
 
-  // Load completed note topics and exam focus on focus
+  // Load completed note topics, exam focus, and Gemini status on focus
   useFocusEffect(
     React.useCallback(() => {
       let isMounted = true;
@@ -84,6 +161,10 @@ export default function DashboardScreen() {
           const savedFocus = await AsyncStorage.getItem('smart_prep_focus');
           if (savedFocus && isMounted) {
             setExamFocus(savedFocus || 'General');
+          }
+          const key = await GeminiService.getApiKey();
+          if (isMounted) {
+            setIsGeminiActive(!!key);
           }
         } catch (_) {}
       };
@@ -290,6 +371,20 @@ export default function DashboardScreen() {
       setIsNewDayDetected(false);
     }
   }, [isNewDayDetected]);
+  const handleAnalyzeProgress = async () => {
+    if (aiCoachLoading) return;
+    setAiCoachLoading(true);
+    try {
+      const text = await GeminiService.analyzeProgress(stats, examFocus, weakAreas);
+      setCoachAnalysisText(text);
+      setShowCoachModal(true);
+    } catch (e: any) {
+      console.error(e);
+      Alert.alert('AI Coach Offline', e.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setAiCoachLoading(false);
+    }
+  };
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -421,15 +516,19 @@ export default function DashboardScreen() {
                   backgroundColor: colors.primary + '18',
                   borderRadius: 6,
                   paddingHorizontal: 6,
-                  paddingVertical: 2,
+                  paddingVertical: 3,
                   marginLeft: 6,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 3,
                 }}>
+                  <Target size={10} color={colors.primary} />
                   <Text style={{
                     color: colors.primary,
                     fontSize: 8,
                     fontWeight: '800',
                   }}>
-                    🎯 {examFocus.toUpperCase()}
+                    {examFocus.toUpperCase()}
                   </Text>
                 </View>
               )}
@@ -461,99 +560,37 @@ export default function DashboardScreen() {
       {/* Practice by Subject Header */}
       <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>Practice by Subject</Text>
 
-      {/* 2x2 Subject Cards Grid with Progress Bars */}
+      {/* Dynamic Subject Cards Grid with Progress Bars */}
       <View style={styles.subjectGrid2x2}>
-        {/* English */}
-        <TouchableOpacity
-          onPress={() => handleCategoryStart('English')}
-          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#3b82f6', borderLeftWidth: 4 }]}
-        >
-          <View>
-            <View style={styles.subjectHeaderRow}>
-              <Text style={[styles.subjectLabel2, { color: '#3b82f6' }]}>ENG</Text>
-              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
-                {subjectProgress['English']?.completed || 0}/{subjectProgress['English']?.total || 0}
-              </Text>
-            </View>
-            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>English Prep</Text>
-          </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, {
-              backgroundColor: '#3b82f6',
-              width: `${subjectProgress['English']?.percent || 0}%`
-            }]} />
-          </View>
-        </TouchableOpacity>
-
-        {/* General Knowledge */}
-        <TouchableOpacity
-          onPress={() => handleCategoryStart('General Knowledge')}
-          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#f97316', borderLeftWidth: 4 }]}
-        >
-          <View>
-            <View style={styles.subjectHeaderRow}>
-              <Text style={[styles.subjectLabel2, { color: '#f97316' }]}>GK</Text>
-              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
-                {subjectProgress['General Knowledge']?.completed || 0}/{subjectProgress['General Knowledge']?.total || 0}
-              </Text>
-            </View>
-            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>General Knowledge</Text>
-          </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, {
-              backgroundColor: '#f97316',
-              width: `${subjectProgress['General Knowledge']?.percent || 0}%`
-            }]} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Pakistan Studies */}
-        <TouchableOpacity
-          onPress={() => handleCategoryStart('Pakistan Studies')}
-          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#ef4444', borderLeftWidth: 4 }]}
-        >
-          <View>
-            <View style={styles.subjectHeaderRow}>
-              <Text style={[styles.subjectLabel2, { color: '#ef4444' }]}>PAK</Text>
-              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
-                {subjectProgress['Pakistan Studies']?.completed || 0}/{subjectProgress['Pakistan Studies']?.total || 0}
-              </Text>
-            </View>
-            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>Pakistan Studies</Text>
-          </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, {
-              backgroundColor: '#ef4444',
-              width: `${subjectProgress['Pakistan Studies']?.percent || 0}%`
-            }]} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Computer Science */}
-        <TouchableOpacity
-          onPress={() => handleCategoryStart('Computer Science')}
-          style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: '#a855f7', borderLeftWidth: 4 }]}
-        >
-          <View>
-            <View style={styles.subjectHeaderRow}>
-              <Text style={[styles.subjectLabel2, { color: '#a855f7' }]}>CS</Text>
-              <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
-                {subjectProgress['Computer Science']?.completed || 0}/{subjectProgress['Computer Science']?.total || 0}
-              </Text>
-            </View>
-            <Text style={[styles.subjectTitle2, dynamicStyles.text]}>Computer Science</Text>
-          </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, {
-              backgroundColor: '#a855f7',
-              width: `${subjectProgress['Computer Science']?.percent || 0}%`
-            }]} />
-          </View>
-        </TouchableOpacity>
+        {SUBJECT_NOTEBOOKS.map((notebook) => {
+          const sub = notebook.subject;
+          const config = SUBJECT_CONFIGS[sub] || { label: sub.substring(0, 3).toUpperCase(), color: colors.primary };
+          const progress = subjectProgress[sub] || { completed: 0, total: 0, percent: 0 };
+          return (
+            <TouchableOpacity
+              key={sub}
+              onPress={() => handleCategoryStart(sub)}
+              style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: config.color, borderLeftWidth: 4 }]}
+            >
+              <View>
+                <View style={styles.subjectHeaderRow}>
+                  <Text style={[styles.subjectLabel2, { color: config.color }]}>{config.label}</Text>
+                  <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
+                    {progress.completed}/{progress.total}
+                  </Text>
+                </View>
+                <Text style={[styles.subjectTitle2, dynamicStyles.text]}>{sub}</Text>
+              </View>
+              
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, {
+                  backgroundColor: config.color,
+                  width: `${progress.percent}%`
+                }]} />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Prominent Full-Width Purple Quiz CTA Banner */}
@@ -573,47 +610,95 @@ export default function DashboardScreen() {
         <ChevronRight size={20} color="#ffffff" />
       </TouchableOpacity>
 
-      {/* ── ANALYTICS SECTION HEADER ── */}
+      {/* ── AI STUDY COACH WIDGET ── */}
+      <Card isDark={isDark} style={{ padding: 18, marginBottom: 4 }}>
+        <SectionHeader
+          isDark={isDark}
+          icon={<Sparkles size={13} color={colors.primary} />}
+          title="GEMINI STUDY COACH"
+        />
+        {isGeminiActive ? (
+          <View style={{ marginTop: 8, gap: 10 }}>
+            <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18 }}>
+              Your Gemini AI Coach is online. Click below to analyze your local error rates and study notebook completions to get a custom roadmap for the **{examFocus}** competitive exam.
+            </Text>
+            <TouchableOpacity
+              onPress={handleAnalyzeProgress}
+              disabled={aiCoachLoading}
+              style={[
+                styles.quizCtaBanner,
+                {
+                  backgroundColor: colors.primary,
+                  padding: 12,
+                  marginTop: 4,
+                  minHeight: 44,
+                  opacity: aiCoachLoading ? 0.75 : 1,
+                  marginBottom: 0
+                }
+              ]}
+            >
+              <View style={[styles.quizCtaLeft, { gap: 8, flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+                {aiCoachLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Sparkles size={16} color="#ffffff" />
+                )}
+                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                  {aiCoachLoading ? 'Generating Diagnostic Plan...' : 'Analyze My Progress'}
+                </Text>
+              </View>
+              <ChevronRight size={16} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ marginTop: 8, gap: 10 }}>
+            <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18 }}>
+              Get personal study guidance, negative marking minimization tips, and custom 20-question mock tests. Add your Gemini API Key in settings.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/settings')}
+              style={[
+                styles.quizCtaBanner,
+                {
+                  backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6',
+                  padding: 12,
+                  marginTop: 4,
+                  minHeight: 44,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  marginBottom: 0
+                }
+              ]}
+            >
+              <View style={[styles.quizCtaLeft, { gap: 8, flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+                <Sparkles size={16} color={colors.primary} />
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>
+                  Activate AI Coach (Add API Key)
+                </Text>
+              </View>
+              <ChevronRight size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </Card>
+
       <View style={styles.analyticsSectionHeader}>
         <BarChart3 size={14} color={colors.primary} />
         <Text style={[styles.analyticsSectionTitle, { color: colors.textMuted }]}>YOUR ANALYTICS</Text>
+        <View style={{ backgroundColor: colors.primary + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 6 }}>
+          <Text style={{ fontSize: 9, fontWeight: '800', color: colors.primary }}>COMING SOON</Text>
+        </View>
         {analyticsLoading && <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 'auto' }} />}
       </View>
 
-      {/* Streak + Stats Card */}
-      <StreakCard
-        currentStreak={analyticsSummary?.currentStreak ?? stats.streak}
-        longestStreak={analyticsSummary?.longestStreak ?? stats.streak}
-        totalQuestions={analyticsSummary?.totalQuestionsAnswered ?? stats.totalQuestionsAnswered}
-        accuracy={
-          (analyticsSummary?.totalQuestionsAnswered ?? stats.totalQuestionsAnswered) > 0
-            ? Math.round(((analyticsSummary?.correctAnswersCount ?? stats.correctAnswersCount) /
-                (analyticsSummary?.totalQuestionsAnswered ?? stats.totalQuestionsAnswered)) * 100)
-            : 0
-        }
-        lastActiveDate={analyticsSummary?.lastActiveDate ?? stats.lastActiveDate}
-        isDark={isDark}
-      />
-
-      {/* Suggested For You */}
-      <SuggestedQuizCard
-        suggested={suggested}
-        isDark={isDark}
-        onStartQuiz={handleSuggestedQuiz}
-      />
-
-      {/* Weak Areas */}
-      <WeakAreasCard
-        weakAreas={weakAreas}
-        isDark={isDark}
-        onPractice={handlePracticeWeakArea}
-      />
-
-      {/* Performance Trend Chart */}
-      <PerformanceTrendChart
-        data={performanceTrend}
-        isDark={isDark}
-      />
+      {/* Analytics Coming Soon Placeholder */}
+      <View style={[styles.card, dynamicStyles.card, { padding: 16, marginBottom: 12 }]}>
+        <View style={{ alignItems: 'center', padding: 20, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 12 }}>
+          <BarChart3 size={24} color={colors.primary} />
+          <Text style={{ marginTop: 8, fontSize: 14, fontWeight: '700', color: colors.text }}>Coming Soon</Text>
+          <Text style={{ marginTop: 4, fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>Deep analytics, performance trends, and weak area analysis are currently being calibrated.</Text>
+        </View>
+      </View>
 
       {/* Competitive Leaderboard */}
       <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
@@ -625,26 +710,11 @@ export default function DashboardScreen() {
           <Award size={18} color="#f59e0b" />
         </View>
 
-        <View style={[styles.leaderboardList, { marginTop: 12 }]}>
-          <View style={styles.leaderItem}>
-            <Text style={styles.leaderRank}>1.</Text>
-            <Text style={[styles.leaderName, dynamicStyles.text]}>Kashif Afridi (Peshawar)</Text>
-            <Text style={[styles.leaderScore, dynamicStyles.textMuted]}>96% • 14d</Text>
-          </View>
-
-          <View style={styles.leaderItem}>
-            <Text style={styles.leaderRank}>2.</Text>
-            <Text style={[styles.leaderName, dynamicStyles.text]}>Ayesha Khattak (Kohat)</Text>
-            <Text style={[styles.leaderScore, dynamicStyles.textMuted]}>92% • 11d</Text>
-          </View>
-
-          <View style={[styles.leaderItem, styles.leaderItemSelf]}>
-            <Text style={[styles.leaderRank, { color: '#fff' }]}>3.</Text>
-            <Text style={[styles.leaderName, { color: '#fff', fontWeight: 'bold' }]}>You (Aspirant)</Text>
-            <Text style={[styles.leaderScore, { color: '#e0e7ff', fontWeight: 'bold' }]}>
-              {stats.totalQuestionsAnswered > 0 ? accuracyText : '0%'} • {stats.streak}d
-            </Text>
-          </View>
+        {/* Coming Soon Overlay */}
+        <View style={{ marginTop: 12, alignItems: 'center', padding: 20, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 12 }}>
+          <Sparkles size={24} color={colors.primary} />
+          <Text style={{ marginTop: 8, fontSize: 14, fontWeight: '700', color: colors.text }}>Coming Soon</Text>
+          <Text style={{ marginTop: 4, fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>Compete with thousands of aspirants nationwide. Leaderboards are currently being calibrated.</Text>
         </View>
       </View>
 
@@ -653,38 +723,11 @@ export default function DashboardScreen() {
         <Text style={[styles.cardSubText, { color: colors.primary }]}>Personal Progression Hub</Text>
         <Text style={[styles.cardTitle, dynamicStyles.text]}>Aspirant Competency Badges</Text>
 
-        <View style={styles.badgeRow}>
-          {/* Badge 1: First Step */}
-          <View style={[styles.compactBadge, stats.totalQuestionsAnswered <= 0 && styles.badgeMuted]}>
-            <View style={[styles.compactBadgeCircle, { backgroundColor: stats.totalQuestionsAnswered > 0 ? colors.primary : (isDark ? '#27272a' : '#e5e7eb') }]}>
-              <Trophy size={16} color={stats.totalQuestionsAnswered > 0 ? '#fff' : '#888'} />
-            </View>
-            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>First Step</Text>
-          </View>
-
-          {/* Badge 2: Streak */}
-          <View style={[styles.compactBadge, stats.streak < 1 && styles.badgeMuted]}>
-            <View style={[styles.compactBadgeCircle, { backgroundColor: stats.streak >= 1 ? '#f59e0b' : (isDark ? '#27272a' : '#e5e7eb') }]}>
-              <Flame size={16} color={stats.streak >= 1 ? '#fff' : '#888'} />
-            </View>
-            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>Consistent</Text>
-          </View>
-
-          {/* Badge 3: Accuracy */}
-          <View style={[styles.compactBadge, stats.totalQuestionsAnswered < 5 && styles.badgeMuted]}>
-            <View style={[styles.compactBadgeCircle, { backgroundColor: stats.totalQuestionsAnswered >= 5 ? '#10b981' : (isDark ? '#27272a' : '#e5e7eb') }]}>
-              <Shield size={16} color={stats.totalQuestionsAnswered >= 5 ? '#fff' : '#888'} />
-            </View>
-            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>Sniper</Text>
-          </View>
-
-          {/* Badge 4: Scholar */}
-          <View style={[styles.compactBadge, completedTopicIds.length < 1 && styles.badgeMuted]}>
-            <View style={[styles.compactBadgeCircle, { backgroundColor: completedTopicIds.length >= 1 ? '#eab308' : (isDark ? '#27272a' : '#e5e7eb') }]}>
-              <BookOpen size={16} color={completedTopicIds.length >= 1 ? '#fff' : '#888'} />
-            </View>
-            <Text style={[styles.compactBadgeText, dynamicStyles.text]}>Scholar</Text>
-          </View>
+        {/* Coming Soon Overlay */}
+        <View style={{ marginTop: 12, alignItems: 'center', padding: 20, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 12 }}>
+          <Trophy size={24} color={colors.accent} />
+          <Text style={{ marginTop: 8, fontSize: 14, fontWeight: '700', color: colors.text }}>Coming Soon</Text>
+          <Text style={{ marginTop: 4, fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>Aspirant competency badges and achievements will be unlocked soon.</Text>
         </View>
       </View>
 
@@ -760,6 +803,48 @@ export default function DashboardScreen() {
         </View>
       )}
 
+      {/* ── AI COACH MODAL ── */}
+      <Modal
+        visible={showCoachModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowCoachModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+          {/* Header */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            backgroundColor: colors.card
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Sparkles size={16} color={colors.primary} />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>AI Study Coach Diagnostic</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowCoachModal(false)}
+              style={{
+                backgroundColor: isDark ? '#27272a' : '#e4e4e7',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 10
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+            {renderMarkdownText(coachAnalysisText, colors)}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </ScrollView>
   );
 }

@@ -6,11 +6,11 @@
 import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { Text } from '../common';
 import { Sparkles, Play, BookOpen, Globe, Calculator, Monitor, Award, ChevronRight } from 'lucide-react-native';
 import type { MCQ } from '../../types';
 

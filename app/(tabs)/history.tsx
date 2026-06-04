@@ -8,13 +8,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
   SafeAreaView,
   RefreshControl,
 } from 'react-native';
+import { Text } from '../../src/components/common';
 import {
   Award,
   Clock,

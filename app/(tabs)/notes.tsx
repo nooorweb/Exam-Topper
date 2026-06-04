@@ -2,12 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   ScrollView,
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
   Alert,
 } from 'react-native';
+import { Text } from '../../src/components/common';
 import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUBJECT_NOTEBOOKS, NoteTopic, SubjectNotebook } from '../../src/data/notesData';
@@ -384,6 +384,9 @@ export default function NotesScreen() {
                     setActiveSubject(sub);
                     setSelectedTopicId(null);
                   }}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: isActive }}
+                  accessibilityLabel={`${sub} Subject Tab`}
                   style={[
                     styles.tabButton,
                     {
@@ -409,7 +412,7 @@ export default function NotesScreen() {
                   {getSubjectIcon(activeSubject, colors.primary, 20)}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.deskLabel, dynamicStyles.text]}>📚 {activeSubject} Desk</Text>
+                  <Text style={[styles.deskLabel, dynamicStyles.text]}>{activeSubject} Desk</Text>
                   <Text style={[styles.deskSub, dynamicStyles.textMuted]}>{activeNotebook.description}</Text>
                 </View>
               </View>
@@ -421,6 +424,9 @@ export default function NotesScreen() {
             <TouchableOpacity
               onPress={() => setFilterEnabled(!filterEnabled)}
               activeOpacity={0.8}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: filterEnabled }}
+              accessibilityLabel={`Filter for ${examFocus} topics`}
               style={[
                 {
                   backgroundColor: filterEnabled ? colors.primary + '15' : colors.card,
@@ -465,9 +471,12 @@ export default function NotesScreen() {
           {/* Topics Accordion Stack - Enhanced */}
           {activeNotebook && (
             <View style={styles.topicsStack}>
-              <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>
-                📖 TOPICS TO MASTER ({filteredTopics.length})
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <BookOpen size={14} color={colors.textMuted} />
+                <Text style={[styles.sectionTitle, dynamicStyles.textMuted, { marginBottom: 0 }]}>
+                  TOPICS TO MASTER ({filteredTopics.length})
+                </Text>
+              </View>
               {filteredTopics.length === 0 ? (
                 <View style={[styles.emptySearchCard, dynamicStyles.card, { marginTop: 12 }]}>
                   <Target size={32} color={colors.warning} opacity={0.6} />
@@ -501,6 +510,9 @@ export default function NotesScreen() {
                     <View key={topic.id} style={[styles.topicWrapper, dynamicStyles.card]}>
                       <TouchableOpacity
                         onPress={() => setSelectedTopicId(isOpen ? null : topic.id)}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: isOpen }}
+                        accessibilityLabel={`Toggle details for ${topic.title}`}
                         style={styles.topicHeader}
                       >
                         <View style={{ flex: 1, paddingRight: 8 }}>
@@ -515,9 +527,15 @@ export default function NotesScreen() {
                                       : topic.importance === 'high'
                                       ? '#ffedd5'
                                       : '#f3f4f6',
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 4,
                                 },
                               ]}
                             >
+                              {topic.importance === 'critical' && <Zap size={11} color="#ef4444" fill="#ef4444" />}
+                              {topic.importance === 'high' && <Sparkles size={11} color="#f97316" />}
+                              {topic.importance === 'medium' && <BookOpen size={11} color="#4b5563" />}
                               <Text
                                 style={{
                                   color:
@@ -526,15 +544,15 @@ export default function NotesScreen() {
                                       : topic.importance === 'high'
                                       ? '#f97316'
                                       : '#4b5563',
-                                  fontSize: 11,
-                                  fontWeight: '700',
+                                  fontSize: 10,
+                                  fontWeight: '800',
                                 }}
                               >
                                 {topic.importance === 'critical'
-                                  ? '⚡ MUST KNOW'
+                                  ? 'MUST KNOW'
                                   : topic.importance === 'high'
-                                  ? '⚠️ HIGH'
-                                  : '📌 MEDIUM'}
+                                  ? 'HIGH'
+                                  : 'MEDIUM'}
                               </Text>
                             </View>
 
@@ -552,6 +570,9 @@ export default function NotesScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           <TouchableOpacity
                             onPress={() => toggleTopicCompletion(topic.id)}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: isCompleted }}
+                            accessibilityLabel={`Mark ${topic.title} as confident`}
                             style={[
                               styles.checkboxCircle,
                               {
@@ -625,6 +646,9 @@ function TopicDetails({
       <View style={styles.modeToggleContainer}>
         <TouchableOpacity
           onPress={() => setReadingMode('read')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: readingMode === 'read' }}
+          accessibilityLabel="Read Mode Content"
           style={[
             styles.modeButton,
             {
@@ -647,6 +671,9 @@ function TopicDetails({
 
         <TouchableOpacity
           onPress={() => setReadingMode('test')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: readingMode === 'test' }}
+          accessibilityLabel="Practice Test Mode"
           style={[
             styles.modeButton,
             {
@@ -858,6 +885,9 @@ function TopicDetails({
       <View style={[styles.topicActions, { borderTopColor: colors.border }]}>
         <TouchableOpacity
           onPress={toggleComplete}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isCompleted }}
+          accessibilityLabel={`Mark topic ${topic.title} as confident`}
           style={[
             styles.btnMarkComplete,
             {
@@ -888,6 +918,8 @@ function TopicDetails({
               params: { category: subject, limit: 10, difficulty: 'All' },
             });
           }}
+          accessibilityRole="button"
+          accessibilityLabel={`Start practice quiz for ${subject}`}
           style={[styles.btnStartTest, { backgroundColor: colors.primary }]}
         >
           <Play size={12} color="#fff" fill="#fff" />

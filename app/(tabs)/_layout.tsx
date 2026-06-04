@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs, router } from 'expo-router';
 import { useApp } from '../../src/context/AppContext';
-import { Home, Award, BookOpen, BookMarked, FileText, User, Settings, Sun, Moon, ClipboardList } from 'lucide-react-native';
+import { Home, Award, BookOpen, BookMarked, User, Settings, Sun, Moon, ClipboardList } from 'lucide-react-native';
 import { TouchableOpacity, View, Text } from 'react-native';
 
 export default function TabLayout() {
@@ -51,6 +51,7 @@ export default function TabLayout() {
             {/* Theme Toggle */}
             <TouchableOpacity
               onPress={toggleTheme}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{
                 padding: 8,
                 borderRadius: 12,
@@ -68,6 +69,7 @@ export default function TabLayout() {
             {/* Admin Panel button */}
             <TouchableOpacity
               onPress={() => router.push('/admin')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{
                 padding: 8,
                 borderRadius: 12,
@@ -81,6 +83,7 @@ export default function TabLayout() {
             {/* Settings button */}
             <TouchableOpacity
               onPress={() => router.push('/settings')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{
                 padding: 8,
                 borderRadius: 12,
@@ -96,7 +99,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Smart Prep',
+          title: 'Exam Topper',
           tabBarLabel: 'Home',
           tabBarIcon: ({ color }) => <Home size={20} color={color} />,
         }}
@@ -123,14 +126,6 @@ export default function TabLayout() {
           title: 'Vocab Builder',
           tabBarLabel: 'Vocab',
           tabBarIcon: ({ color }) => <BookMarked size={20} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="papers"
-        options={{
-          title: 'Past Papers',
-          tabBarLabel: 'Papers',
-          tabBarIcon: ({ color }) => <FileText size={20} color={color} />,
         }}
       />
       <Tabs.Screen

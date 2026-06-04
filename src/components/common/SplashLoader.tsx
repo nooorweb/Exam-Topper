@@ -4,8 +4,9 @@
  * Shows a pulsing branded loader with optional message.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { GraduationCap } from 'lucide-react-native';
+import Text from './Text';
 
 interface SplashLoaderProps {
   isDark: boolean;
