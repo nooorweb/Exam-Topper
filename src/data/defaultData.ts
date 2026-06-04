@@ -8,7 +8,7 @@ import { MCQ, VocabWord } from '../types';
 export const DEFAULT_MCQS: MCQ[] = [
   // --- Computer Science ---
   {
-    id: "cs-1",
+    id: "9a6e1106-cf4c-47bc-ad74-884814d48d56",
     question: "Which of the following is the fastest protocol used to transfer files over local or wide area networks?",
     options: ["FTP (File Transfer Protocol)", "HTTP (Hypertext Transfer Protocol)", "TFTP (Trivial File Transfer Protocol)", "SFTP (Secure File Transfer Protocol)"],
     correctAnswer: 3,
@@ -21,7 +21,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "cs-2",
+    id: "a4f21db5-eb07-4a0d-85ad-2900ea903960",
     question: "What is the size of an IPv6 address?",
     options: ["32 bits", "64 bits", "128 bits", "256 bits"],
     correctAnswer: 2,
@@ -34,7 +34,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "cs-3",
+    id: "fce46eb9-cdde-45c1-8408-bd974d6c4d7e",
     question: "Which data structure works on the LIFO (Last In First Out) principle?",
     options: ["Queue", "Stack", "Linked List", "Binary Tree"],
     correctAnswer: 1,
@@ -46,7 +46,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "medium"
   },
   {
-    id: "cs-4",
+    id: "85beeb5c-5fb2-4752-9ea8-654dbdb189c4",
     question: "In database management systems, which key is used to establish relationship between two tables?",
     options: ["Primary Key", "Foreign Key", "Candidate Key", "Super Key"],
     correctAnswer: 1,
@@ -59,7 +59,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "cs-5",
+    id: "5101037f-ec73-455b-b9d9-5f214690e80a",
     question: "Which layer of the OSI model is responsible for routing packets across different networks?",
     options: ["Data Link Layer", "Transport Layer", "Network Layer", "Physical Layer"],
     correctAnswer: 2,
@@ -74,7 +74,7 @@ export const DEFAULT_MCQS: MCQ[] = [
 
   // --- Pakistan Studies ---
   {
-    id: "ps-1",
+    id: "40cc8c0e-d1b4-4b53-b09e-05e80931505c",
     question: "Who was the first President of the Constituent Assembly of Pakistan?",
     options: ["Quaid-e-Azam Muhammad Ali Jinnah", "Liaquat Ali Khan", "Maulvi Tamizuddin", "Iskander Mirza"],
     correctAnswer: 0,
@@ -87,7 +87,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "ps-2",
+    id: "299d2572-c2cb-46a4-8ef8-cc5ec93dfc57",
     question: "The highest mountain peak of Pakistan, K2, is located in which mountain range?",
     options: ["Himalayas", "Karakoram Range", "Hindu Kush", "Sulaiman Range"],
     correctAnswer: 1,
@@ -100,7 +100,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "ps-3",
+    id: "d58f3319-3db6-47b2-9d32-d1d789069a30",
     question: "In which year was the famous Lahore Resolution (Pakistan Resolution) passed?",
     options: ["1930", "1937", "1940", "1947"],
     correctAnswer: 2,
@@ -113,7 +113,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "ps-4",
+    id: "c0993092-23c8-47fb-b472-7634f19b2a65",
     question: "Who authored the famous book 'The Making of Pakistan'?",
     options: ["K.K. Aziz", "I.H. Qureshi", "Chaudhry Muhammad Ali", "Ayesha Jalal"],
     correctAnswer: 0,
@@ -125,7 +125,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "medium"
   },
   {
-    id: "ps-5",
+    id: "f72365bb-d18e-4a67-9b27-5d07010a01cc",
     question: "Which is the longest river in Pakistan?",
     options: ["Jhelum River", "Chenab River", "Ravi River", "Indus River"],
     correctAnswer: 3,
@@ -140,7 +140,7 @@ export const DEFAULT_MCQS: MCQ[] = [
 
   // --- English ---
   {
-    id: "eng-1",
+    id: "87317e3f-67ee-4bdf-87f5-ee1f3918a2bc",
     question: "Fill in the blank with the correct preposition: 'He is proficient ________ several programming languages.'",
     options: ["at", "in", "with", "of"],
     correctAnswer: 1,
@@ -153,7 +153,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "eng-2",
+    id: "e99a1cb0-c533-4f9b-bd5e-6345ec41b0fc",
     question: "Identify the antonym of the word 'EPHEMERAL'.",
     options: ["Transient", "Short-lived", "Permanent", "Fleeting"],
     correctAnswer: 2,
@@ -166,7 +166,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "eng-3",
+    id: "7636e05d-cc45-42a9-b425-b072f8de38a3",
     question: "Choose the correct sentence structure:",
     options: [
       "If he would have worked hard, he would pass the exam.",
@@ -184,7 +184,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "eng-4",
+    id: "5ab70b8a-b9c2-4db1-8636-6e415ef48a3e",
     question: "What is the meaning of the idiom 'To burn the midnight oil'?",
     options: ["To cause an accidental fire", "To work or study late into the night", "To waste precious fuels", "To express deep operational anger"],
     correctAnswer: 1,
@@ -198,7 +198,7 @@ export const DEFAULT_MCQS: MCQ[] = [
 
   // --- General Knowledge ---
   {
-    id: "gk-1",
+    id: "a1bb4021-d7fe-41dc-accd-b4ec3c2ea8ef",
     question: "Which of the following international organizations has its headquarters in Geneva, Switzerland?",
     options: ["UNESCO", "International Court of Justice (ICJ)", "World Health Organization (WHO)", "International Monetary Fund (IMF)"],
     correctAnswer: 2,
@@ -211,7 +211,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "gk-2",
+    id: "c3bf68a4-0ef6-4f40-8b42-d1c9ef005efc",
     question: "Which is the largest ocean in the world?",
     options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
     correctAnswer: 3,
@@ -224,7 +224,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "gk-3",
+    id: "9aee9bc7-6ecb-439f-bd96-3ef1a196ecf9",
     question: "The currency of Turkey is named ________.",
     options: ["Dinar", "Euro", "Lira", "Riyal"],
     correctAnswer: 2,
@@ -237,7 +237,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "gk-4",
+    id: "bdab728e-5b12-4217-bfde-e16e09ebef5a",
     question: "Which country is called the 'Land of the Midnight Sun'?",
     options: ["Japan", "Norway", "Finland", "Iceland"],
     correctAnswer: 1,
@@ -249,9 +249,10 @@ export const DEFAULT_MCQS: MCQ[] = [
     repeatCount: 4,
     importance: "medium"
   },
+
   // --- Mathematics (Arithmetic, Percentages, Ratios, Speed & Algebra) ---
   {
-    id: "math-1",
+    id: "df6b04ec-24e0-4ad7-8db1-4e78a69bf2cc",
     question: "In a screening test, 35% of the candidates passed and 455 candidates failed. What was the total number of candidates who appeared in the exam?",
     options: ["650", "700", "750", "800"],
     correctAnswer: 1,
@@ -264,7 +265,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "math-2",
+    id: "7a52bbcd-20fa-40ea-9b88-cb94d75d658c",
     question: "A train 120 meters long passes a telegraph post in 6 seconds. What is the speed of the train in km/h?",
     options: ["54 km/h", "72 km/h", "80 km/h", "90 km/h"],
     correctAnswer: 1,
@@ -277,7 +278,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "math-3",
+    id: "8e9c614b-2f3b-4886-ac15-d227c8ff6a99",
     question: "The average of five consecutive odd numbers is 61. What is the highest of these five numbers?",
     options: ["61", "63", "65", "67"],
     correctAnswer: 2,
@@ -289,7 +290,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "medium"
   },
   {
-    id: "math-4",
+    id: "844cc9ee-a83a-4aeb-a029-41718bf7ee2a",
     question: "If 15 men can perform a task in 30 days, how many days will 10 men take to complete the exact same task?",
     options: ["20 days", "40 days", "45 days", "50 days"],
     correctAnswer: 2,
@@ -302,7 +303,7 @@ export const DEFAULT_MCQS: MCQ[] = [
     importance: "high"
   },
   {
-    id: "math-5",
+    id: "3df71fb2-b7ce-4bb0-b74c-47b2ff9222c5",
     question: "If a right-angled triangle has bases of 6cm and 8cm, what is its hypotenuse length, and what is its area?",
     options: ["Hypotenuse 10cm, Area 24 cm²", "Hypotenuse 12cm, Area 48 cm²", "Hypotenuse 10cm, Area 48 cm²", "Hypotenuse 14cm, Area 24 cm²"],
     correctAnswer: 0,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs, router } from 'expo-router';
 import { useApp } from '../../src/context/AppContext';
-import { Home, Award, BookOpen, BookMarked, FileText, User, Settings, Sun, Moon } from 'lucide-react-native';
+import { Home, Award, BookOpen, BookMarked, FileText, User, Settings, Sun, Moon, ClipboardList } from 'lucide-react-native';
 import { TouchableOpacity, View, Text } from 'react-native';
 
 export default function TabLayout() {
@@ -131,6 +131,14 @@ export default function TabLayout() {
           title: 'Past Papers',
           tabBarLabel: 'Papers',
           tabBarIcon: ({ color }) => <FileText size={20} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'Quiz History',
+          tabBarLabel: 'History',
+          tabBarIcon: ({ color }) => <ClipboardList size={20} color={color} />,
         }}
       />
     </Tabs>

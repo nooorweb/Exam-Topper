@@ -7,8 +7,18 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MCQ, VocabWord, UserStats, QuizSession } from '../types';
 import { DEFAULT_MCQS, DEFAULT_VOCAB } from '../data/defaultData';
-import { supabase } from '../lib/supabase';
+import { AuthService } from '../services/auth.service';
+import { UserService } from '../services/user.service';
+import { QuizService } from '../services/quiz.service';
 import { Alert } from 'react-native';
+
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 interface AppContextProps {
   mcqs: MCQ[];
@@ -81,12 +91,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // MCQs loading
         const storedMcqs = await AsyncStorage.getItem('smart_prep_mcqs');
-        if (storedMcqs) {
-          setMcqs(JSON.parse(storedMcqs));
+        let parsedMcqs: MCQ[] = storedMcqs ? JSON.parse(storedMcqs) : [];
+
+        // Legacy ID mapping
+        const legacyIdMap: Record<string, string> = {
+          'cs-1': '9a6e1106-cf4c-47bc-ad74-884814d48d56',
+          'cs-2': 'a4f21db5-eb07-4a0d-85ad-2900ea903960',
+          'cs-3': 'fce46eb9-cdde-45c1-8408-bd974d6c4d7e',
+          'cs-4': '85beeb5c-5fb2-4752-9ea8-654dbdb189c4',
+          'cs-5': '5101037f-ec73-455b-b9d9-5f214690e80a',
+          'ps-1': '40cc8c0e-d1b4-4b53-b09e-05e80931505c',
+          'ps-2': '299d2572-c2cb-46a4-8ef8-cc5ec93dfc57',
+          'ps-3': 'd58f3319-3db6-47b2-9d32-d1d789069a30',
+          'ps-4': 'c0993092-23c8-47fb-b472-7634f19b2a65',
+          'ps-5': 'f72365bb-d18e-4a67-9b27-5d07010a01cc',
+          'eng-1': '87317e3f-67ee-4bdf-87f5-ee1f3918a2bc',
+          'eng-2': 'e99a1cb0-c533-4f9b-bd5e-6345ec41b0fc',
+          'eng-3': '7636e05d-cc45-42a9-b425-b072f8de38a3',
+          'eng-4': '5ab70b8a-b9c2-4db1-8636-6e415ef48a3e',
+          'gk-1': 'a1bb4021-d7fe-41dc-accd-b4ec3c2ea8ef',
+          'gk-2': 'c3bf68a4-0ef6-4f40-8b42-d1c9ef005efc',
+          'gk-3': '9aee9bc7-6ecb-439f-bd96-3ef1a196ecf9',
+          'gk-4': 'bdab728e-5b12-4217-bfde-e16e09ebef5a',
+          'math-1': 'df6b04ec-24e0-4ad7-8db1-4e78a69bf2cc',
+          'math-2': '7a52bbcd-20fa-40ea-9b88-cb94d75d658c',
+          'math-3': '8e9c614b-2f3b-4886-ac15-d227c8ff6a99',
+          'math-4': '844cc9ee-a83a-4aeb-a029-41718bf7ee2a',
+          'math-5': '3df71fb2-b7ce-4bb0-b74c-47b2ff9222c5',
+        };
+
+        let hasUpdates = false;
+        if (parsedMcqs.length > 0) {
+          parsedMcqs = parsedMcqs.map((m) => {
+            if (legacyIdMap[m.id]) {
+              hasUpdates = true;
+              return { ...m, id: legacyIdMap[m.id] };
+            }
+            if (m.id.startsWith('custom-mcq-')) {
+              hasUpdates = true;
+              return { ...m, id: generateUUID() };
+            }
+            return m;
+          });
         } else {
-          setMcqs(DEFAULT_MCQS);
-          await AsyncStorage.setItem('smart_prep_mcqs', JSON.stringify(DEFAULT_MCQS));
+          parsedMcqs = DEFAULT_MCQS;
+          hasUpdates = true;
         }
+
+        if (hasUpdates) {
+          await AsyncStorage.setItem('smart_prep_mcqs', JSON.stringify(parsedMcqs));
+        }
+        setMcqs(parsedMcqs);
 
         // Vocab loading
         const storedVocab = await AsyncStorage.getItem('smart_prep_vocab');
@@ -119,13 +174,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     initAppData();
 
-    // 2. Supabase Session Listener
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    // 2. Auth Session Bootstrap via AuthService
+    AuthService.getSession().then(async ({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      // Flush any quiz sessions queued while offline
+      if (u) {
+        QuizService.flushPendingSync(u.id).catch(() => null);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = AuthService.onAuthStateChange(async (_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (_event === 'SIGNED_IN' && u) {
+        QuizService.flushPendingSync(u.id).catch(() => null);
+      }
     });
 
     return () => {
@@ -153,20 +217,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addMCQ = async (newMcq: Omit<MCQ, 'id'>) => {
     const mcqWithId: MCQ = {
       ...newMcq,
-      id: `custom-mcq-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: generateUUID(),
     };
     const updated = [mcqWithId, ...mcqs];
     setMcqs(updated);
     await AsyncStorage.setItem('smart_prep_mcqs', JSON.stringify(updated));
     
-    // Cloud sync logic if user is authenticated
-    if (user) {
-      try {
-        await supabase.from('mcqs').insert([{ ...mcqWithId, user_id: user.id }]);
-      } catch (e) {
-        console.log('Failed to upload custom MCQ to cloud', e);
-      }
-    }
   };
 
   const addVocab = async (newVocab: Omit<VocabWord, 'id' | 'isBookmarked'>) => {
@@ -179,13 +235,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setVocab(updated);
     await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(updated));
 
-    if (user) {
-      try {
-        await supabase.from('vocab').insert([{ ...vocabWithId, user_id: user.id }]);
-      } catch (e) {
-        console.log('Failed to upload vocab to cloud', e);
-      }
-    }
   };
 
   const bulkImportMCQs = (rawJson: string) => {
@@ -206,7 +255,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           typeof item.category === 'string'
         ) {
           validMCQs.push({
-            id: item.id || `imported-mcq-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            id: item.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id)
+              ? item.id
+              : generateUUID(),
             question: item.question,
             options: item.options,
             correctAnswer: item.correctAnswer,
@@ -330,15 +381,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStats(updatedStats);
     await AsyncStorage.setItem('smart_prep_stats', JSON.stringify(updatedStats));
 
-    // Upload to Supabase cloud if user is logged in
+    // Cloud sync via QuizService (offline-first: queues if network fails)
     if (user) {
       try {
-        await supabase.from('quiz_sessions').insert([{ ...newSession, user_id: user.id }]);
-        await supabase
-          .from('user_profiles')
-          .upsert({ id: user.id, updated_at: new Date(), stats: updatedStats });
+        await QuizService.saveAttempt(user.id, newSession);
+        await UserService.updateStats(user.id, {
+          totalQuestions: sessionData.totalQuestions,
+          correctAnswers: sessionData.score,
+          streakDate: todayStr,
+        });
       } catch (e) {
-        console.log('Failed to sync quiz session to cloud', e);
+        // Queue for retry on next app open
+        await QuizService.queueForSync(newSession);
+        console.warn('Quiz sync queued for retry:', e);
       }
     }
   };
@@ -359,58 +414,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setVocab(clearBookmarks);
     await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(clearBookmarks));
 
-    if (user) {
-      try {
-        await supabase.from('user_profiles').upsert({ id: user.id, updated_at: new Date(), stats: resetValues });
-        // Optionally delete cloud records as well
-      } catch (e) {
-        console.log('Failed to reset cloud stats', e);
-      }
-    }
+    // Cloud reset handled via UserService in future phase
   };
 
-  // Auth Operations
+  // Auth Operations — delegated to AuthService
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await AuthService.signInWithEmail(email, password);
     if (data?.user) setUser(data.user);
     return { error };
   };
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await AuthService.signUpWithEmail(email, password);
     if (data?.user) setUser(data.user);
     return { error };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await AuthService.signOut();
     setUser(null);
   };
 
+  /**
+   * Flush any offline-queued quiz sessions to Supabase.
+   * Call on app startup after auth is confirmed.
+   */
   const syncWithCloud = async () => {
     if (!user) return;
     try {
-      // 1. Fetch user profile stats
-      const { data: profile, error: pError } = await supabase
-        .from('user_profiles')
-        .select('stats')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.stats) {
-        const cloudStats = profile.stats as UserStats;
-        // Merge strategy: take the one with higher total questions or merge lists
-        if (cloudStats.totalQuestionsAnswered > stats.totalQuestionsAnswered) {
-          setStats(cloudStats);
-          await AsyncStorage.setItem('smart_prep_stats', JSON.stringify(cloudStats));
-        } else {
-          // Upload local stats as it is more fresh
-          await supabase.from('user_profiles').upsert({ id: user.id, stats });
-        }
-      }
+      // Flush any offline-queued quiz sessions first
+      await QuizService.flushPendingSync(user.id);
+      // Profile is managed by UserService RPC — no JSON blob merge needed
     } catch (e) {
-      console.log('Cloud sync error', e);
+      console.log('Cloud sync error:', e);
     }
+    // Cloud sync: custom MCQs are user-created, persist via mcqs table
+    // (handled by MCQService in Phase 5 — skipped here to avoid breaking current flow);
   };
 
   return (

@@ -4,14 +4,20 @@ import { Stack } from 'expo-router';
 import { AppProvider } from '../src/context/AppContext';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
+import { useAuth } from '../src/hooks/useAuth';
+import OnboardingScreen from '../src/components/onboarding/OnboardingScreen';
+import SplashLoader from '../src/components/common/SplashLoader';
 
-export default function RootLayout() {
-  const [loaded, error] = useFonts({
+/** Inner component — has access to AppProvider context */
+function AppShell() {
+  const [loaded] = useFonts({
     'Poppins-Regular': Poppins_400Regular,
     'Poppins-Medium': Poppins_500Medium,
     'Poppins-SemiBold': Poppins_600SemiBold,
     'Poppins-Bold': Poppins_700Bold,
   });
+
+  const { loading, needsOnboarding, refreshProfile } = useAuth();
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -25,7 +31,6 @@ export default function RootLayout() {
 
         const style = document.createElement('style');
         style.innerHTML = `
-          /* Force Poppins as the default font family for standard elements */
           body, input, select, textarea, button {
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
           }
@@ -35,8 +40,23 @@ export default function RootLayout() {
     }
   }, []);
 
+  // Wait for fonts + auth
+  if (!loaded || loading) {
+    return <SplashLoader isDark message="Starting Smart Prep..." />;
+  }
+
+  // Onboarding gate for new signed-in users
+  if (needsOnboarding) {
+    return (
+      <>
+        <OnboardingScreen onComplete={refreshProfile} />
+        <StatusBar style="auto" />
+      </>
+    );
+  }
+
   return (
-    <AppProvider>
+    <>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="admin" options={{ presentation: 'modal' }} />
@@ -45,7 +65,14 @@ export default function RootLayout() {
         <Stack.Screen name="quiz-session" options={{ presentation: 'card' }} />
       </Stack>
       <StatusBar style="auto" />
-    </AppProvider>
+    </>
   );
 }
 
+export default function RootLayout() {
+  return (
+    <AppProvider>
+      <AppShell />
+    </AppProvider>
+  );
+}

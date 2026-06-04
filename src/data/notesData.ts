@@ -13,6 +13,7 @@ export interface NoteTopic {
   tables?: { headers: string[]; rows: string[][] }[];
   importance: 'high' | 'medium' | 'critical';
   estimatedReadTime: number; // in minutes
+  examTargets?: string[]; // Tagged exams this topic is relevant for
 }
 
 export interface SubjectNotebook {
@@ -40,7 +41,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Second Conditional: Hypothetical present/future. Structure: If + past simple, would + verb. (e.g. If I won the lottery, I would buy a house.)',
           'Third Conditional: Unfulfilled past events. Structure: If + past perfect, would have + past participle. (e.g. If they had played well, they would have won.)'
         ],
-        content: 'Correct tense agreement is the single most tested factor. Avoid the common error of mixing "would + worked" or using "would have" in both clauses.'
+        content: 'Correct tense agreement is the single most tested factor. Avoid the common error of mixing "would + worked" or using "would have" in both clauses.',
+        examTargets: ['Teaching', 'Computer Operator', 'KPPSC', 'Police', 'CSS', 'ETEA']
       },
       {
         id: 'eng-note-2',
@@ -54,7 +56,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Aim at: Correct: "They aim at improving KPPSC selection." (Incorrect: aim of)',
           'Agree to (proposal) vs. Agree with (person): "I agree with you, but I cannot agree to this scheme."'
         ],
-        content: 'Always read sentences aloud. Regular reading develops natural intuitive detection for incorrect structural prepositions.'
+        content: 'Always read sentences aloud. Regular reading develops natural intuitive detection for incorrect structural prepositions.',
+        examTargets: ['Teaching', 'Computer Operator', 'KPPSC', 'Police', 'CSS', 'ETEA']
       }
     ]
   },
@@ -78,7 +81,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           { name: 'Percentage Growth', equation: '((New - Original) / Original) * 100', application: 'To find population growth rates or increase ratios' },
           { name: 'Percentage Value finder', equation: 'X = (Part / Percent) * 100', application: 'Use when the quantity of a partial percentage is known (e.g. 455 failed candidates)' }
         ],
-        content: 'Solve first by approximating. If 65% is roughly 450, 100% must be around 700. This eliminates incorrect random choices fast without tedious calculation.'
+        content: 'Solve first by approximating. If 65% is roughly 450, 100% must be around 700. This eliminates incorrect random choices fast without tedious calculation.',
+        examTargets: ['Teaching', 'Computer Operator', 'Police', 'ETEA']
       },
       {
         id: 'math-note-2',
@@ -94,7 +98,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
         formulas: [
           { name: 'Inverse Proportion constant', equation: 'M1 * D1 = M2 * D2', application: 'Calculating days needed when number of workers change' }
         ],
-        content: 'If 15 men take 30 days, 10 men will take MORE days, not less. Always check if your answer is logical before picking a choice.'
+        content: 'If 15 men take 30 days, 10 men will take MORE days, not less. Always check if your answer is logical before picking a choice.',
+        examTargets: ['Teaching', 'Computer Operator', 'Police', 'ETEA']
       }
     ]
   },
@@ -132,7 +137,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
             ]
           }
         ],
-        content: 'Key Treaties: Universal Declaration of Human Rights (UDHR) adopted 10 December 1948; NPT opened for signature in 1968; Kyoto Protocol (1997); Paris Agreement (2015); SDGs (17 goals, 2015-2030) replacing MDGs (8 goals, 2000-2015). Pakistan joined the UN on September 30, 1947.'
+        content: 'Key Treaties: Universal Declaration of Human Rights (UDHR) adopted 10 December 1948; NPT opened for signature in 1968; Kyoto Protocol (1997); Paris Agreement (2015); SDGs (17 goals, 2015-2030) replacing MDGs (8 goals, 2000-2015). Pakistan joined the UN on September 30, 1947.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       },
       {
         id: 'gk-note-2',
@@ -148,7 +154,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Governing Body: Islamic Summit (meets every 3 years) and Council of Foreign Ministers (meets annually).',
           'Secretary-General: Hissein Brahim Taha (Chad) since Jan 2022. Pakistan\'s Syed Sharifuddin Pirzada served as SG from 1985-1988.'
         ],
-        content: 'Pakistan hosted the historic 2nd OIC Summit in Lahore in 1974 where Bangladesh was formally recognized. There are 5 Observer States: Russia, Bosnia-Herzegovina, Thailand, Central African Republic, and Turkish Cypriots.'
+        content: 'Pakistan hosted the historic 2nd OIC Summit in Lahore in 1974 where Bangladesh was formally recognized. There are 5 Observer States: Russia, Bosnia-Herzegovina, Thailand, Central African Republic, and Turkish Cypriots.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       },
       {
         id: 'gk-note-3',
@@ -164,7 +171,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'SAFTA: South Asian Free Trade Area signed Jan 2004, effective July 2006.',
           'Summits in Pakistan: 4th (1988), 12th (2004), and 19th (2016 - stalled due to India-Pak tensions).'
         ],
-        content: 'Mnemonic to memorize members: "All Big Bhutan India Maldives Nepal Pakistan Sri Lanka" (A-B-B-I-M-N-P-S). SAARC houses the Cultural Centre in Colombo, Sri Lanka and the Agricultural Centre in Dhaka, Bangladesh.'
+        content: 'Mnemonic to memorize members: "All Big Bhutan India Maldives Nepal Pakistan Sri Lanka" (A-B-B-I-M-N-P-S). SAARC houses the Cultural Centre in Colombo, Sri Lanka and the Agricultural Centre in Dhaka, Bangladesh.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       },
       {
         id: 'gk-note-4',
@@ -180,7 +188,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Article 5: Collective defense clause — an attack on one member is an attack on all (only invoked after 9/11).',
           'Counterpart: Warsaw Pact (Soviet-led military alliance, 1955-1991).'
         ],
-        content: 'NATO-led operations include Operation Allied Force (Yugoslavia, 1999) and Operation Enduring Freedom (Afghanistan, 2001). Pakistan is not a member of NATO but cooperated as a non-member partner (Major Non-NATO Ally).'
+        content: 'NATO-led operations include Operation Allied Force (Yugoslavia, 1999) and Operation Enduring Freedom (Afghanistan, 2001). Pakistan is not a member of NATO but cooperated as a non-member partner (Major Non-NATO Ally).',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       },
       {
         id: 'gk-note-5',
@@ -196,7 +205,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Strongest Mechanism: Binding dispute settlement rulings.',
           'TRIPS: Trade-Related Intellectual Property Rights agreement.'
         ],
-        content: 'Key Principles: MFN (Most Favoured Nation) - equal treatment; National Treatment - no domestic discrimination; Free Trade; Predictability; and Fair Competition. Key Rounds: Geneva (1947), Kennedy (1964-1967), Uruguay (1986-1994, created WTO), and Doha (2001-ongoing).'
+        content: 'Key Principles: MFN (Most Favoured Nation) - equal treatment; National Treatment - no domestic discrimination; Free Trade; Predictability; and Fair Competition. Key Rounds: Geneva (1947), Kennedy (1964-1967), Uruguay (1986-1994, created WTO), and Doha (2001-ongoing).',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       },
       {
         id: 'gk-note-6',
@@ -212,7 +222,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'World Bank Arms: 5 institutions (IBRD, IDA - grants to poorest, IFC - private sector, MIGA, ICSID - disputes).',
           'Key Difference: IMF focuses on monetary stability/short-term loans; World Bank focuses on developmental projects/long-term loans.'
         ],
-        content: 'By convention, the IMF Managing Director is always European and the World Bank President is always an American citizen. Pakistan has received multiple IMF bailout programs (typically Extended Fund Facility (EFF) or Stand-By Arrangement (SBA)) and remains a frequent borrower.'
+        content: 'By convention, the IMF Managing Director is always European and the World Bank President is always an American citizen. Pakistan has received multiple IMF bailout programs (typically Extended Fund Facility (EFF) or Stand-By Arrangement (SBA)) and remains a frequent borrower.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       }
     ]
   },
@@ -236,7 +247,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           '1940: Passage of the Lahore Resolution on March 23rd at Minto Park.',
           '1947: Lord Mountbatten\'s 3rd June Plan leading to partition and the Independence Act.'
         ],
-        content: 'These milestone dates are heavily tested in ETEA & KPPSC screening exams. Master the chronological timeline to tackle historical MCQs with ease.'
+        content: 'These milestone dates are heavily tested in ETEA & KPPSC screening exams. Master the chronological timeline to tackle historical MCQs with ease.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching', 'ETEA']
       },
       {
         id: 'ps-note-2',
@@ -262,7 +274,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
             ]
           }
         ],
-        content: 'FATA (Federally Administered Tribal Areas) was formally merged with Khyber Pakhtunkhwa province in May 2018 via the 25th Constitutional Amendment.'
+        content: 'FATA (Federally Administered Tribal Areas) was formally merged with Khyber Pakhtunkhwa province in May 2018 via the 25th Constitutional Amendment.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching', 'ETEA']
       },
       {
         id: 'ps-note-3',
@@ -276,7 +289,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Fatima Jinnah: Famously designated "Madar-e-Millat" (Mother of the Nation); contested the 1965 presidential election against Ayub Khan.',
           'Benazir Bhutto: First female Prime Minister of a Muslim state (1s term: 1988-1990; 2nd term: 1993-1996); assassinated in December 2007.'
         ],
-        content: 'The celebrated title "Ambassador of Hindu-Muslim Unity" was conferred upon Jinnah by Congress leader Sarojini Naidu in 1916.'
+        content: 'The celebrated title "Ambassador of Hindu-Muslim Unity" was conferred upon Jinnah by Congress leader Sarojini Naidu in 1916.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching', 'ETEA']
       },
       {
         id: 'ps-note-4',
@@ -291,7 +305,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           '1973 Constitution: Current governing document; drafted under Z.A. Bhutto; passed April 10 and enforced on August 14, 1973.',
           '18th Amendment (2010): Devolution of central ministry powers to provinces, abolished concurrently listed items, renamed NWFP to KPK.'
         ],
-        content: 'Objectives Resolution (March 12, 1949): Under Liaquat Ali Khan, it defined sovereignty belonging to Allah. Integrated into the constitution via Article 2A.'
+        content: 'Objectives Resolution (March 12, 1949): Under Liaquat Ali Khan, it defined sovereignty belonging to Allah. Integrated into the constitution via Article 2A.',
+        examTargets: ['KPPSC', 'CSS']
       },
       {
         id: 'ps-note-5',
@@ -315,7 +330,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
             ]
           }
         ],
-        content: 'Benazir Bhutto represents the first female Prime Minister, while Shehbaz Sharif and Asif Ali Zardari currently lead the state apparatus.'
+        content: 'Benazir Bhutto represents the first female Prime Minister, while Shehbaz Sharif and Asif Ali Zardari currently lead the state apparatus.',
+        examTargets: ['KPPSC', 'CSS']
       },
       {
         id: 'ps-note-6',
@@ -329,7 +345,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'CPEC: China-Pakistan Economic Corridor consisting of energy networks and transit roads terminating at Gwadar port in Balochistan.',
           'Export Lead: Textiles and ready-made garments make up over 60% of Pakistan’s gross export receipts.'
         ],
-        content: 'Dr. Abdus Salam was Pakistan\'s first Nobel Laureate, winning the Nobel Prize in Physics in 1979 for Electroweak Unification Theory.'
+        content: 'Dr. Abdus Salam was Pakistan\'s first Nobel Laureate, winning the Nobel Prize in Physics in 1979 for Electroweak Unification Theory.',
+        examTargets: ['KPPSC', 'CSS', 'Teaching']
       },
       {
         id: 'ps-note-7',
@@ -344,7 +361,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Shimla Agreement (1972): Bilateral treaty between Z.A. Bhutto and Indira Gandhi; redesignated the Ceasefire Line into the Line of Control.',
           'Kargil war (1999): High-altitude border clash along the Kargil heights in Kashmir, ending under US-backed pressure.'
         ],
-        content: 'Defence Day: Pakistan marks September 6 annually to pay tribute to military veterans who defended the country in the 1965 war.'
+        content: 'Defence Day: Pakistan marks September 6 annually to pay tribute to military veterans who defended the country in the 1965 war.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       },
       {
         id: 'ps-note-8',
@@ -358,7 +376,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Dr. A.Q. Khan: Universally recognized as the father of Pakistan\'s atomic weapons and uranium gas centrifuge programs.',
           'Youm-e-Takbeer: Celeberated on May 28 annually to honor the achievement of becoming the 7th nuclear capable world power.'
         ],
-        content: 'Nuclear status: To date, Pakistan remains the first and only Muslim-majority state possessing active, tested nuclear warheads.'
+        content: 'Nuclear status: To date, Pakistan remains the first and only Muslim-majority state possessing active, tested nuclear warheads.',
+        examTargets: ['KPPSC', 'Police', 'CSS', 'Teaching']
       },
       {
         id: 'ps-note-9',
@@ -384,7 +403,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
             ]
           }
         ],
-        content: 'Despite several US collaborations, Pakistan is non-member to NATO, maintaining a non-NATO security ally status designation instead.'
+        content: 'Despite several US collaborations, Pakistan is non-member to NATO, maintaining a non-NATO security ally status designation instead.',
+        examTargets: ['KPPSC', 'CSS']
       }
     ]
   },
@@ -406,7 +426,8 @@ export const SUBJECT_NOTEBOOKS: SubjectNotebook[] = [
           'Layer 2 (Data Link): Media Access Control (MAC) addresses, frames, switches.',
           'Layer 1 (Physical): Cables, hubs, bits, electronic signals.'
         ],
-        content: 'Remember the classic acronym to order layers from bottom to top: "Please Do Not Throw Sausage Pizza Away" (Physical, Data Link, Network, Transport, Session, Presentation, Application).'
+        content: 'Remember the classic acronym to order layers from bottom to top: "Please Do Not Throw Sausage Pizza Away" (Physical, Data Link, Network, Transport, Session, Presentation, Application).',
+        examTargets: ['Computer Operator', 'Teaching']
       }
     ]
   }

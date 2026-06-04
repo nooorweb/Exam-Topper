@@ -36,6 +36,8 @@ export interface QuizSession {
   score: number;
   totalQuestions: number;
   category: string;
+  mode?: 'practice' | 'exam';
+  timePerQuestion?: number; // 0 = no timer; positive = seconds per question
   answers: {
     mcqId: string;
     question: string;

@@ -12,7 +12,7 @@ import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUBJECT_NOTEBOOKS, NoteTopic, SubjectNotebook } from '../../src/data/notesData';
 import { useApp } from '../../src/context/AppContext';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   BookOpen,
   Calculator,
@@ -47,6 +47,10 @@ export default function NotesScreen() {
   const [completedTopicIds, setCompletedTopicIds] = useState<string[]>([]);
   const [checkedPoints, setCheckedPoints] = useState<Record<string, boolean>>({});
 
+  // Personalization exam focus states
+  const [examFocus, setExamFocus] = useState<string>('General');
+  const [filterEnabled, setFilterEnabled] = useState<boolean>(true);
+
   const colors = {
     bg: isDark ? '#09090b' : '#f9fafb',
     card: isDark ? '#121214' : '#ffffff',
@@ -77,22 +81,32 @@ export default function NotesScreen() {
     },
   });
 
-  // Load progress
-  useEffect(() => {
-    const loadProgress = async () => {
-      try {
-        const savedCompleted = await AsyncStorage.getItem('smart_prep_completed_notes');
-        if (savedCompleted) {
-          setCompletedTopicIds(JSON.parse(savedCompleted));
-        }
-        const savedChecked = await AsyncStorage.getItem('smart_prep_checked_points');
-        if (savedChecked) {
-          setCheckedPoints(JSON.parse(savedChecked));
-        }
-      } catch (_) {}
-    };
-    loadProgress();
-  }, []);
+  // Load progress & exam focus when tab screen gets focus or mounts
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+      const loadData = async () => {
+        try {
+          const savedCompleted = await AsyncStorage.getItem('smart_prep_completed_notes');
+          if (savedCompleted && isMounted) {
+            setCompletedTopicIds(JSON.parse(savedCompleted));
+          }
+          const savedChecked = await AsyncStorage.getItem('smart_prep_checked_points');
+          if (savedChecked && isMounted) {
+            setCheckedPoints(JSON.parse(savedChecked));
+          }
+          const savedFocus = await AsyncStorage.getItem('smart_prep_focus');
+          if (savedFocus && isMounted) {
+            setExamFocus(savedFocus || 'General');
+          }
+        } catch (_) {}
+      };
+      loadData();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
 
   const params = useLocalSearchParams();
   useEffect(() => {
@@ -146,11 +160,30 @@ export default function NotesScreen() {
     return SUBJECT_NOTEBOOKS.find((n) => n.subject === activeSubject);
   }, [activeSubject]);
 
+  const filteredTopics = useMemo(() => {
+    if (!activeNotebook) return [];
+    if (!filterEnabled || examFocus === 'General') {
+      return activeNotebook.topics;
+    }
+    return activeNotebook.topics.filter(topic => 
+      !topic.examTargets || topic.examTargets.includes(examFocus)
+    );
+  }, [activeNotebook, filterEnabled, examFocus]);
+
   const searchedTopics = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const results: { subject: SubjectNotebook['subject']; topic: NoteTopic }[] = [];
     SUBJECT_NOTEBOOKS.forEach((n) => {
       n.topics.forEach((t) => {
+        // Also apply target exam filter in search if filter is enabled
+        const matchesFocus =
+          !filterEnabled ||
+          examFocus === 'General' ||
+          !t.examTargets ||
+          t.examTargets.includes(examFocus);
+
+        if (!matchesFocus) return;
+
         const matchesQuery =
           t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           t.overview.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -163,7 +196,7 @@ export default function NotesScreen() {
       });
     });
     return results;
-  }, [searchQuery]);
+  }, [searchQuery, filterEnabled, examFocus]);
 
   const getSubjectIcon = (sub: SubjectNotebook['subject'], color: string, size: number = 18) => {
     switch (sub) {
@@ -383,107 +416,179 @@ export default function NotesScreen() {
             </View>
           )}
 
+          {/* Exam Filter Toggle Pill Bar */}
+          {activeNotebook && examFocus && examFocus !== 'General' && (
+            <TouchableOpacity
+              onPress={() => setFilterEnabled(!filterEnabled)}
+              activeOpacity={0.8}
+              style={[
+                {
+                  backgroundColor: filterEnabled ? colors.primary + '15' : colors.card,
+                  borderColor: filterEnabled ? colors.primary : colors.border,
+                  borderWidth: 1.5,
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 16,
+                }
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{
+                  padding: 4,
+                  backgroundColor: filterEnabled ? colors.primary : (isDark ? '#27272a' : '#e5e7eb'),
+                  borderRadius: 6,
+                }}>
+                  <Check size={12} color={filterEnabled ? '#fff' : colors.textMuted} />
+                </View>
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: filterEnabled ? colors.primary : colors.text,
+                }}>
+                  Filter: {examFocus} Topics Only
+                </Text>
+              </View>
+              <Text style={{
+                fontSize: 11,
+                fontWeight: '600',
+                color: filterEnabled ? colors.primary : colors.textMuted,
+              }}>
+                {filterEnabled ? 'Enabled' : 'Disabled'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {/* Topics Accordion Stack - Enhanced */}
           {activeNotebook && (
             <View style={styles.topicsStack}>
               <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>
-                📖 TOPICS TO MASTER ({activeNotebook.topics.length})
+                📖 TOPICS TO MASTER ({filteredTopics.length})
               </Text>
-              {activeNotebook.topics.map((topic) => {
-                const isOpen = selectedTopicId === topic.id;
-                const isCompleted = completedTopicIds.includes(topic.id);
+              {filteredTopics.length === 0 ? (
+                <View style={[styles.emptySearchCard, dynamicStyles.card, { marginTop: 12 }]}>
+                  <Target size={32} color={colors.warning} opacity={0.6} />
+                  <Text style={[styles.emptySearchTitle, dynamicStyles.text, { fontSize: 16, textAlign: 'center' }]}>
+                    No topics for {examFocus}
+                  </Text>
+                  <Text style={[styles.emptySearchSub, dynamicStyles.textMuted, { fontSize: 13, textAlign: 'center' }]}>
+                    This subject doesn't contain any topics tagged for your target exam: {examFocus}.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setFilterEnabled(false)}
+                    style={{
+                      backgroundColor: colors.primary,
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      marginTop: 8,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                      Show All {activeSubject} Topics
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                filteredTopics.map((topic) => {
+                  const isOpen = selectedTopicId === topic.id;
+                  const isCompleted = completedTopicIds.includes(topic.id);
 
-                return (
-                  <View key={topic.id} style={[styles.topicWrapper, dynamicStyles.card]}>
-                    <TouchableOpacity
-                      onPress={() => setSelectedTopicId(isOpen ? null : topic.id)}
-                      style={styles.topicHeader}
-                    >
-                      <View style={{ flex: 1, paddingRight: 8 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                          <View
+                  return (
+                    <View key={topic.id} style={[styles.topicWrapper, dynamicStyles.card]}>
+                      <TouchableOpacity
+                        onPress={() => setSelectedTopicId(isOpen ? null : topic.id)}
+                        style={styles.topicHeader}
+                      >
+                        <View style={{ flex: 1, paddingRight: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <View
+                              style={[
+                                styles.importanceTag,
+                                {
+                                  backgroundColor:
+                                    topic.importance === 'critical'
+                                      ? '#fee2e2'
+                                      : topic.importance === 'high'
+                                      ? '#ffedd5'
+                                      : '#f3f4f6',
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={{
+                                  color:
+                                    topic.importance === 'critical'
+                                      ? '#ef4444'
+                                      : topic.importance === 'high'
+                                      ? '#f97316'
+                                      : '#4b5563',
+                                  fontSize: 11,
+                                  fontWeight: '700',
+                                }}
+                              >
+                                {topic.importance === 'critical'
+                                  ? '⚡ MUST KNOW'
+                                  : topic.importance === 'high'
+                                  ? '⚠️ HIGH'
+                                  : '📌 MEDIUM'}
+                              </Text>
+                            </View>
+
+                            <View style={styles.timeTag}>
+                              <Clock size={13} color={colors.textMuted} />
+                              <Text style={[styles.timeTagText, dynamicStyles.textMuted]}>
+                                {topic.estimatedReadTime}m
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Text style={[styles.topicTitleText, dynamicStyles.text]}>{topic.title}</Text>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => toggleTopicCompletion(topic.id)}
                             style={[
-                              styles.importanceTag,
+                              styles.checkboxCircle,
                               {
-                                backgroundColor:
-                                  topic.importance === 'critical'
-                                    ? '#fee2e2'
-                                    : topic.importance === 'high'
-                                    ? '#ffedd5'
-                                    : '#f3f4f6',
+                                backgroundColor: isCompleted ? colors.success : 'transparent',
+                                borderColor: isCompleted ? colors.success : colors.borderAccent,
                               },
                             ]}
                           >
-                            <Text
-                              style={{
-                                color:
-                                  topic.importance === 'critical'
-                                    ? '#ef4444'
-                                    : topic.importance === 'high'
-                                    ? '#f97316'
-                                    : '#4b5563',
-                                fontSize: 11,
-                                fontWeight: '700',
-                              }}
-                            >
-                              {topic.importance === 'critical'
-                                ? '⚡ MUST KNOW'
-                                : topic.importance === 'high'
-                                ? '⚠️ HIGH'
-                                : '📌 MEDIUM'}
-                            </Text>
-                          </View>
+                            {isCompleted && <Check size={10} color="#fff" />}
+                          </TouchableOpacity>
 
-                          <View style={styles.timeTag}>
-                            <Clock size={13} color={colors.textMuted} />
-                            <Text style={[styles.timeTagText, dynamicStyles.textMuted]}>
-                              {topic.estimatedReadTime}m
-                            </Text>
-                          </View>
+                          {isOpen ? (
+                            <ChevronUp size={18} color={colors.textMuted} />
+                          ) : (
+                            <ChevronDown size={18} color={colors.textMuted} />
+                          )}
                         </View>
+                      </TouchableOpacity>
 
-                        <Text style={[styles.topicTitleText, dynamicStyles.text]}>{topic.title}</Text>
-                      </View>
-
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <TouchableOpacity
-                          onPress={() => toggleTopicCompletion(topic.id)}
-                          style={[
-                            styles.checkboxCircle,
-                            {
-                              backgroundColor: isCompleted ? colors.success : 'transparent',
-                              borderColor: isCompleted ? colors.success : colors.borderAccent,
-                            },
-                          ]}
-                        >
-                          {isCompleted && <Check size={10} color="#fff" />}
-                        </TouchableOpacity>
-
-                        {isOpen ? (
-                          <ChevronUp size={18} color={colors.textMuted} />
-                        ) : (
-                          <ChevronDown size={18} color={colors.textMuted} />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-
-                    {isOpen && (
-                      <View style={[styles.topicDetailsContainer, { borderTopColor: colors.border }]}>
-                        <TopicDetails
-                          topic={topic}
-                          subject={activeSubject}
-                          isCompleted={isCompleted}
-                          toggleComplete={() => toggleTopicCompletion(topic.id)}
-                          checkedPoints={checkedPoints}
-                          toggleLineItem={toggleLineItem}
-                          colors={colors}
-                          isDark={isDark}
-                        />
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
+                      {isOpen && (
+                        <View style={[styles.topicDetailsContainer, { borderTopColor: colors.border }]}>
+                          <TopicDetails
+                            topic={topic}
+                            subject={activeSubject}
+                            isCompleted={isCompleted}
+                            toggleComplete={() => toggleTopicCompletion(topic.id)}
+                            checkedPoints={checkedPoints}
+                            toggleLineItem={toggleLineItem}
+                            colors={colors}
+                            isDark={isDark}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              )}
             </View>
           )}
         </>

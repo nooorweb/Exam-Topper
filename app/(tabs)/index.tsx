@@ -5,11 +5,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Pressable,
-  Share,
   Platform,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useApp } from '../../src/context/AppContext';
 import {
@@ -17,26 +16,29 @@ import {
   Flame,
   Play,
   BookOpen,
-  AlertTriangle,
-  Sparkles,
-  Download,
   CheckCircle2,
   Trophy,
   Shield,
   Wifi,
   WifiOff,
   Image as ImageIcon,
-  Monitor,
-  Smartphone,
   ChevronRight,
+  BarChart3,
+  Sparkles,
 } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
-import { triggerWebDownload, GRADIENTS } from '../../src/lib/wallpaperUtils';
+import { triggerWebDownload } from '../../src/lib/wallpaperUtils';
 import { SUBJECT_NOTEBOOKS } from '../../src/data/notesData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAnalytics } from '../../src/hooks/useAnalytics';
+import { useRecommendations } from '../../src/hooks/useRecommendations';
+import StreakCard from '../../src/components/dashboard/StreakCard';
+import WeakAreasCard from '../../src/components/dashboard/WeakAreasCard';
+import PerformanceTrendChart from '../../src/components/dashboard/PerformanceTrendChart';
+import SuggestedQuizCard from '../../src/components/dashboard/SuggestedQuizCard';
 
 export default function DashboardScreen() {
   const {
@@ -56,38 +58,72 @@ export default function DashboardScreen() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [simulatedOffline, setSimulatedOffline] = useState(false);
   const [completedTopicIds, setCompletedTopicIds] = useState<string[]>([]);
+  const [examFocus, setExamFocus] = useState<string>('General');
 
-  // Load completed note topics on focus
+  // ── Analytics & Recommendations ──────────────────────────────────────────
+  const {
+    weakAreas,
+    performanceTrend,
+    summary: analyticsSummary,
+    loading: analyticsLoading,
+    refresh: refreshAnalytics,
+  } = useAnalytics();
+
+  const { suggested } = useRecommendations(mcqs, stats);
+
+  // Load completed note topics and exam focus on focus
   useFocusEffect(
     React.useCallback(() => {
       let isMounted = true;
-      const loadCompleted = async () => {
+      const loadData = async () => {
         try {
-          const saved = await AsyncStorage.getItem('smart_prep_completed_notes');
-          if (saved && isMounted) {
-            setCompletedTopicIds(JSON.parse(saved));
+          const savedCompleted = await AsyncStorage.getItem('smart_prep_completed_notes');
+          if (savedCompleted && isMounted) {
+            setCompletedTopicIds(JSON.parse(savedCompleted));
+          }
+          const savedFocus = await AsyncStorage.getItem('smart_prep_focus');
+          if (savedFocus && isMounted) {
+            setExamFocus(savedFocus || 'General');
           }
         } catch (_) {}
       };
-      loadCompleted();
+      loadData();
       return () => {
         isMounted = false;
       };
     }, [])
   );
 
-  // Compute today's focus topic based on daySeed
+  // Compute today's focus topic based on daySeed and examFocus
   const todayFocusTopic = useMemo(() => {
     const allTopics: { topic: any; subject: string }[] = [];
     SUBJECT_NOTEBOOKS.forEach(notebook => {
       notebook.topics.forEach(topic => {
-        allTopics.push({ topic, subject: notebook.subject });
+        const matchesFocus =
+          !examFocus ||
+          examFocus === 'General' ||
+          !topic.examTargets ||
+          topic.examTargets.includes(examFocus);
+
+        if (matchesFocus) {
+          allTopics.push({ topic, subject: notebook.subject });
+        }
       });
     });
+    
+    // Fallback to all topics if filter leaves nothing
+    if (allTopics.length === 0) {
+      SUBJECT_NOTEBOOKS.forEach(notebook => {
+        notebook.topics.forEach(topic => {
+          allTopics.push({ topic, subject: notebook.subject });
+        });
+      });
+    }
+
     if (allTopics.length === 0) return null;
     const idx = daySeed % allTopics.length;
     return allTopics[idx];
-  }, [daySeed]);
+  }, [daySeed, examFocus]);
 
   // Compute progress for each subject
   const subjectProgress = useMemo(() => {
@@ -147,7 +183,6 @@ export default function DashboardScreen() {
   };
 
   const handleQuickStartQuiz = () => {
-    // Navigate to Quiz Session with mixed questions config parameters
     router.push({
       pathname: '/quiz-session',
       params: { category: 'mixed', limit: 10, difficulty: 'All' },
@@ -155,6 +190,21 @@ export default function DashboardScreen() {
   };
 
   const handleCategoryStart = (category: string) => {
+    router.push({
+      pathname: '/quiz-session',
+      params: { category, limit: 10, difficulty: 'All' },
+    });
+  };
+
+  const handleSuggestedQuiz = (category: string, _mcqIds: string[]) => {
+    const target = category === 'mixed' ? 'mixed' : category;
+    router.push({
+      pathname: '/quiz-session',
+      params: { category: target, limit: 10, difficulty: 'All' },
+    });
+  };
+
+  const handlePracticeWeakArea = (category: string) => {
     router.push({
       pathname: '/quiz-session',
       params: { category, limit: 10, difficulty: 'All' },
@@ -366,6 +416,23 @@ export default function DashboardScreen() {
             <View style={styles.focusLabelRow}>
               <Sparkles size={12} color={colors.primary} />
               <Text style={[styles.focusLabel, { color: colors.primary }]}>TODAY'S FOCUS</Text>
+              {examFocus && examFocus !== 'General' && (
+                <View style={{
+                  backgroundColor: colors.primary + '18',
+                  borderRadius: 6,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  marginLeft: 6,
+                }}>
+                  <Text style={{
+                    color: colors.primary,
+                    fontSize: 8,
+                    fontWeight: '800',
+                  }}>
+                    🎯 {examFocus.toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={[styles.focusImportanceBadge, {
                 backgroundColor: todayFocusTopic.topic.importance === 'critical' ? '#fee2e2' : todayFocusTopic.topic.importance === 'high' ? '#ffedd5' : '#f3f4f6'
               }]}>
@@ -505,6 +572,48 @@ export default function DashboardScreen() {
         </View>
         <ChevronRight size={20} color="#ffffff" />
       </TouchableOpacity>
+
+      {/* ── ANALYTICS SECTION HEADER ── */}
+      <View style={styles.analyticsSectionHeader}>
+        <BarChart3 size={14} color={colors.primary} />
+        <Text style={[styles.analyticsSectionTitle, { color: colors.textMuted }]}>YOUR ANALYTICS</Text>
+        {analyticsLoading && <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 'auto' }} />}
+      </View>
+
+      {/* Streak + Stats Card */}
+      <StreakCard
+        currentStreak={analyticsSummary?.currentStreak ?? stats.streak}
+        longestStreak={analyticsSummary?.longestStreak ?? stats.streak}
+        totalQuestions={analyticsSummary?.totalQuestionsAnswered ?? stats.totalQuestionsAnswered}
+        accuracy={
+          (analyticsSummary?.totalQuestionsAnswered ?? stats.totalQuestionsAnswered) > 0
+            ? Math.round(((analyticsSummary?.correctAnswersCount ?? stats.correctAnswersCount) /
+                (analyticsSummary?.totalQuestionsAnswered ?? stats.totalQuestionsAnswered)) * 100)
+            : 0
+        }
+        lastActiveDate={analyticsSummary?.lastActiveDate ?? stats.lastActiveDate}
+        isDark={isDark}
+      />
+
+      {/* Suggested For You */}
+      <SuggestedQuizCard
+        suggested={suggested}
+        isDark={isDark}
+        onStartQuiz={handleSuggestedQuiz}
+      />
+
+      {/* Weak Areas */}
+      <WeakAreasCard
+        weakAreas={weakAreas}
+        isDark={isDark}
+        onPractice={handlePracticeWeakArea}
+      />
+
+      {/* Performance Trend Chart */}
+      <PerformanceTrendChart
+        data={performanceTrend}
+        isDark={isDark}
+      />
 
       {/* Competitive Leaderboard */}
       <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
@@ -663,6 +772,18 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
     gap: 16,
+  },
+  analyticsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: -4,
+    marginTop: 4,
+  },
+  analyticsSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
   },
   toast: {
     position: 'absolute',
