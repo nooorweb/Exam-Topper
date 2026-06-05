@@ -9,11 +9,11 @@ export default function TabLayout() {
   const isDark = currentTheme === 'dark';
 
   const themeColors = {
-    bg: isDark ? '#09090b' : '#ffffff',
-    border: isDark ? '#1f1f23' : '#f3f4f6',
-    text: isDark ? '#f4f4f5' : '#1f2937',
-    tint: '#6366f1', // Indigo 600
-    inactive: isDark ? '#71717a' : '#9ca3af',
+    bg: isDark ? '#0E1117' : '#ffffff',
+    border: isDark ? '#2A2D3A' : '#f3f4f6',
+    text: isDark ? '#e1e2eb' : '#1f2937',
+    tint: '#7C6FF0', // Primary Purple
+    inactive: isDark ? '#c8c4d6' : '#9ca3af',
   };
 
   return (

@@ -36,7 +36,7 @@ export default function QuizSetupScreen() {
 
   // ── Standard Quiz state ─────────────────────────────────────────────────
   const [category, setCategory] = useState<string>('Mixed Practice');
-  const [questionsLimit, setQuestionsLimit] = useState<number>(20);
+  const [questionsLimit, setQuestionsLimit] = useState<number>(15);
   const [difficulty, setDifficulty] = useState<'All' | 'Conceptual' | 'High Repeats'>('All');
   const [negativeMarking, setNegativeMarking] = useState<boolean>(false);
   const [markingValue, setMarkingValue] = useState<string>('0.25');
@@ -89,7 +89,7 @@ export default function QuizSetupScreen() {
     'Mathematics',
   ];
 
-  const questionLimits = [10, 15, 20, 25, 30];
+  const questionLimits = [15, 30, 40];
 
   const colors = {
     bg: isDark ? '#09090b' : '#f9fafb',

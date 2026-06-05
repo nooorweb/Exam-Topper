@@ -59,10 +59,10 @@ export default function Input({
   multiline,
   editable = true,
 }: InputProps) {
-  const bg = isDark ? '#121214' : '#ffffff';
-  const borderColor = isDark ? '#1f1f23' : '#e5e7eb';
-  const textColor = isDark ? '#f4f4f5' : '#1f2937';
-  const mutedColor = isDark ? '#9ca3af' : '#6b7280';
+  const bg = isDark ? '#0E1117' : '#ffffff';
+  const borderColor = isDark ? '#2A2D3A' : '#e5e7eb';
+  const textColor = isDark ? '#e1e2eb' : '#1f2937';
+  const mutedColor = isDark ? '#c8c4d6' : '#6b7280';
 
   return (
     <View
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderRadius: 14,
     paddingHorizontal: 14,
     // Minimum 44pt touch target height

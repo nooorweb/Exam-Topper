@@ -8,7 +8,7 @@ const isUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4
 
 export interface QuizAttemptRow {
   id: string;
-  category: string;
+  subject: string;   // renamed from category → subject to match new schema
   score_percent: number;
   correct_count: number;
   total_questions: number;
@@ -22,7 +22,7 @@ export const QuizService = {
    * Writes:
    *   1. quiz_attempts (1 row)
    *   2. attempt_answers (batch — one row per answer)
-   *   3. weak_areas (upsert — 1 write)
+   *   3. weak_areas (upsert — 1 write per subject)
    */
   saveAttempt: async (userId: string, session: QuizSession): Promise<string> => {
     const scorePercent = (session.score / session.totalQuestions) * 100;
@@ -32,7 +32,7 @@ export const QuizService = {
       .from('quiz_attempts')
       .insert({
         user_id: userId,
-        category: session.category,
+        subject: session.category,        // new schema uses subject
         started_at: new Date(
           new Date(session.date).getTime() - session.timeSpent * 1000
         ).toISOString(),
@@ -52,7 +52,7 @@ export const QuizService = {
       attempt_id: attempt.id,
       user_id: userId,
       mcq_id: isUuid(ans.mcqId) ? ans.mcqId : null,
-      category: session.category,
+      subject: session.category,          // new schema uses subject
       selected_option: ans.selectedOption,
       correct_option: ans.correctOption,
       is_correct: ans.isCorrect,
@@ -71,14 +71,14 @@ export const QuizService = {
         [
           {
             user_id: userId,
-            category: session.category,
+            subject: session.category,    // new schema uses subject
             incorrect_count: incorrect,
             total_count: total,
             accuracy_pct: ((total - incorrect) / total) * 100,
             last_updated: new Date().toISOString(),
           },
         ],
-        { onConflict: 'user_id,category', ignoreDuplicates: false }
+        { onConflict: 'user_id,subject', ignoreDuplicates: false }
       );
     }
 
@@ -103,7 +103,6 @@ export const QuizService = {
       try {
         await QuizService.saveAttempt(userId, session);
       } catch {
-        // Keep failed sessions for next retry
         failed.push(session);
       }
     }
@@ -114,7 +113,7 @@ export const QuizService = {
     }
   },
 
-  /** Paginated quiz history (avoid loading ALL sessions at once) */
+  /** Paginated quiz history — newest first */
   getHistory: async (
     userId: string,
     page = 0,
@@ -123,7 +122,7 @@ export const QuizService = {
     return supabase
       .from('quiz_attempts')
       .select(
-        'id, category, score_percent, correct_count, total_questions, time_spent_secs, completed_at'
+        'id, subject, score_percent, correct_count, total_questions, time_spent_secs, completed_at'
       )
       .eq('user_id', userId)
       .order('completed_at', { ascending: false })

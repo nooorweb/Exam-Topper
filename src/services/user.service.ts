@@ -49,6 +49,17 @@ export const UserService = {
       .eq('id', userId);
   },
 
+  /** Update user display name */
+  updateDisplayName: async (userId: string, displayName: string) => {
+    return supabase
+      .from('user_profiles')
+      .update({
+        display_name: displayName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+  },
+
   /**
    * Atomically increment user stats via Postgres RPC.
    * Requires the `increment_user_stats` function created in SQL editor.

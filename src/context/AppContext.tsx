@@ -8,9 +8,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MCQ, VocabWord, UserStats, QuizSession } from '../types';
 import { DEFAULT_MCQS, DEFAULT_VOCAB } from '../data/defaultData';
 import { AuthService } from '../services/auth.service';
-import { UserService } from '../services/user.service';
+import { UserService, type UserProfile } from '../services/user.service';
 import { QuizService } from '../services/quiz.service';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const generateUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -40,11 +44,14 @@ interface AppContextProps {
   daySeed: number;
   // Supabase Auth extension
   user: any;
+  profile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   syncWithCloud: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -56,6 +63,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isNewDayDetected, setIsNewDayDetected] = useState<boolean>(false);
   const [autoDownloadWallpaper, setAutoDownloadWallpaper] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const [stats, setStats] = useState<UserStats>({
@@ -72,6 +80,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const currentDate = new Date().getTime();
     return Math.floor((currentDate - baseDate) / (1000 * 60 * 60 * 24));
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const p = await UserService.getProfile(userId);
+      setProfile(p);
+      if (p) {
+        if (p.onboarding_done) {
+          await AsyncStorage.setItem('smart_prep_onboarding_complete', 'true');
+        } else {
+          const localDoneVal = await AsyncStorage.getItem('smart_prep_onboarding_complete');
+          if (localDoneVal === 'true') {
+            const savedFocus = await AsyncStorage.getItem('smart_prep_focus');
+            await UserService.completeOnboarding(userId, {
+              selectedSubjects: savedFocus ? [savedFocus] : [],
+              examTarget: savedFocus || 'General',
+              dailyGoalMinutes: 20,
+            });
+            p.onboarding_done = true;
+            setProfile({ ...p });
+          }
+        }
+      }
+      return p;
+    } catch (err) {
+      console.error('Error fetching user profile in AppContext:', err);
+      setProfile(null);
+      return null;
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchUserProfile(user.id);
+    }
+  };
 
   // 1. Initial Load of Local App Data from AsyncStorage
   useEffect(() => {
@@ -190,8 +233,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     AuthService.getSession().then(async ({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
-      // Flush any quiz sessions queued while offline
       if (u) {
+        await fetchUserProfile(u.id);
         QuizService.flushPendingSync(u.id).catch(() => null);
       }
     });
@@ -200,7 +243,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const u = session?.user ?? null;
       setUser(u);
       if (_event === 'SIGNED_IN' && u) {
+        await fetchUserProfile(u.id);
         QuizService.flushPendingSync(u.id).catch(() => null);
+      } else if (_event === 'SIGNED_OUT') {
+        setProfile(null);
       }
     });
 
@@ -437,10 +483,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { error };
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { data, error } = await AuthService.signUpWithEmail(email, password);
+  const signUp = async (email: string, password: string, displayName?: string) => {
+    const { data, error } = await AuthService.signUpWithEmail(email, password, displayName);
     if (data?.user) setUser(data.user);
     return { error };
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        const { error } = await AuthService.signInWithGoogleWeb(window.location.origin);
+        return { error };
+      }
+
+      const redirectUrl = Linking.createURL('/auth/callback');
+      const { data, error } = await AuthService.signInWithGoogle(redirectUrl);
+      
+      if (error) return { error };
+      if (!data?.url) return { error: new Error('No Auth URL returned') };
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+      if (result.type === 'success') {
+        const urlStr = result.url;
+        const hashIndex = urlStr.indexOf('#');
+        const queryIndex = urlStr.indexOf('?');
+        const paramStr = hashIndex !== -1 
+          ? urlStr.substring(hashIndex + 1) 
+          : (queryIndex !== -1 ? urlStr.substring(queryIndex + 1) : '');
+
+        const getParam = (name: string) => {
+          const match = paramStr.match(new RegExp('[#?&]' + name + '=([^&#]*)'));
+          if (match) return decodeURIComponent(match[1]);
+          const match2 = paramStr.match(new RegExp('(^|&)' + name + '=([^&#]*)'));
+          return match2 ? decodeURIComponent(match2[2]) : null;
+        };
+
+        const access_token = getParam('access_token');
+        const refresh_token = getParam('refresh_token');
+
+        if (access_token && refresh_token) {
+          const { error: sessionError } = await AuthService.setSessionFromTokens(access_token, refresh_token);
+          if (sessionError) return { error: sessionError };
+          return { error: null };
+        } else {
+          return { error: new Error('Failed to extract tokens from redirect URL') };
+        }
+      } else {
+        return { error: new Error('Sign in was cancelled or failed') };
+      }
+    } catch (e) {
+      return { error: e };
+    }
   };
 
   const signOut = async () => {
@@ -487,11 +581,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         daySeed,
         // Auth
         user,
+        profile,
         loading,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         syncWithCloud,
+        refreshProfile,
       }}
     >
       {children}

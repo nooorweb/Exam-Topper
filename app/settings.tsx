@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../src/context/AppContext';
+import { UserService } from '../src/services/user.service';
 import {
   Sun,
   Moon,
@@ -24,15 +25,20 @@ import {
   Sparkles,
   ChevronLeft,
   Users,
+  Gavel,
+  Landmark,
+  FlaskConical,
+  Mail,
+  Lock,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { Card, SectionHeader, ToggleRow, Button, Badge, Text, Input } from '../src/components/common';
 
 const EXAM_FOCUSES = [
-  { key: 'KPPSC & ETEA', label: 'KPPSC & ETEA', sub: 'Khyber Pakhtunkhwa boards' },
-  { key: 'FIA Inspector', label: 'FIA Inspector', sub: 'Federal Investigation Agency' },
-  { key: 'CSS Descriptive', label: 'CSS', sub: 'Civil Service Examination' },
-  { key: 'All Punjab/Sindh Boards', label: 'All Boards', sub: 'Mixed General Practice' },
+  { key: 'KPPSC & ETEA', label: 'ETEA Medical & Engineering', sub: 'Khyber Pakhtunkhwa Boards', icon: FlaskConical },
+  { key: 'FIA Inspector', label: 'FIA Inspector & Federal Jobs', sub: 'Federal Investigation Agency', icon: Shield },
+  { key: 'CSS Descriptive', label: 'CSS (Central Superior Services)', sub: 'Federal Public Service Commission', icon: Gavel },
+  { key: 'All Punjab/Sindh Boards', label: 'PMS (Provincial Management)', sub: 'Provincial Commissions & Boards', icon: Landmark },
 ];
 
 export default function SettingsScreen() {
@@ -43,9 +49,11 @@ export default function SettingsScreen() {
     autoDownloadWallpaper,
     setAutoDownloadWallpaper,
     user,
+    profile,
     signIn,
     signUp,
     signOut,
+    refreshProfile,
   } = useApp();
 
   const isDark = currentTheme === 'dark';
@@ -56,19 +64,23 @@ export default function SettingsScreen() {
   // Auth local states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+
+
   const colors = {
-    bg: isDark ? '#09090b' : '#f9fafb',
-    text: isDark ? '#f4f4f5' : '#1f2937',
-    textMuted: isDark ? '#6b7280' : '#9ca3af',
-    border: isDark ? '#1f1f23' : '#e5e7eb',
-    primary: '#6366f1',
-    success: '#10b981',
+    bg: isDark ? '#0E1117' : '#f9fafb',
+    card: isDark ? '#121214' : '#ffffff',
+    text: isDark ? '#e1e2eb' : '#1f2937',
+    textMuted: isDark ? '#c8c4d6' : '#9ca3af',
+    border: isDark ? '#2A2D3A' : '#e5e7eb',
+    primary: '#7C6FF0',
+    success: '#10B981',
     danger: '#ef4444',
-    warning: '#f59e0b',
+    warning: '#F59E0B',
   };
 
   useEffect(() => {
@@ -118,14 +130,25 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      {/* Redesigned Premium Sticky Header */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.border,
+        backgroundColor: colors.bg,
+      }}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <ChevronLeft size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Settings</Text>
         <View style={{ width: 40 }} />
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* ── PROFILE & AUTH SECTION ── */}
         <Card isDark={isDark} style={styles.cardGap}>
@@ -135,13 +158,19 @@ export default function SettingsScreen() {
             title={user ? "ACCOUNT PROFILE" : "GUEST MODE"}
           />
           {user ? (
-            <View style={{ gap: 8 }}>
-              <Text style={[styles.desc, { color: colors.text }]}>
+            <View style={{ gap: 10 }}>
+              <Text style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>
                 Logged in as: <Text style={{ fontWeight: 'bold' }}>{user.email}</Text>
               </Text>
-              <Text style={[styles.desc, { color: colors.textMuted, fontSize: 10 }]}>
+              <Text style={{ fontSize: 10, color: colors.textMuted, lineHeight: 15 }}>
                 Your progress, history, and generated AI quizzes are synced automatically.
               </Text>
+              {profile?.display_name && (
+                <Text style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>
+                  Display Name: <Text style={{ fontWeight: 'bold' }}>{profile.display_name}</Text>
+                </Text>
+              )}
+              <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, marginVertical: 6 }} />
               <Button
                 label="SIGN OUT OF ACCOUNT"
                 onPress={async () => {
@@ -157,18 +186,28 @@ export default function SettingsScreen() {
                 }}
                 isDark={isDark}
                 variant="outline"
-                style={{ marginTop: 6 }}
+                style={{ marginTop: 2, borderColor: colors.primary }}
+                textStyle={{ color: colors.primary }}
               />
             </View>
           ) : (
             <View style={{ gap: 10 }}>
-              <Text style={[styles.desc, { color: colors.textMuted }]}>
+              <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18 }}>
                 Register a free account to unlock **AI Custom Quiz Builder**, sync progress across devices, and secure your learning statistics.
               </Text>
               {authError && (
                 <Text style={{ color: colors.danger, fontSize: 11, fontWeight: 'bold' }}>
                   {authError}
                 </Text>
+              )}
+              {isSignUpMode && (
+                <Input
+                  placeholder="Full Name"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  isDark={isDark}
+                  icon={<Users size={16} color={colors.textMuted} />}
+                />
               )}
               <Input
                 placeholder="Email Address"
@@ -177,6 +216,7 @@ export default function SettingsScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 isDark={isDark}
+                icon={<Mail size={16} color={colors.textMuted} />}
               />
               <Input
                 placeholder="Password"
@@ -185,49 +225,60 @@ export default function SettingsScreen() {
                 secureTextEntry
                 autoCapitalize="none"
                 isDark={isDark}
+                icon={<Lock size={16} color={colors.textMuted} />}
               />
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                <Button
-                  label={authLoading ? "Processing..." : (isSignUpMode ? "Register" : "Sign In")}
-                  onPress={async () => {
-                    if (!email.trim() || !password.trim()) {
-                      setAuthError('Please fill in both fields.');
-                      return;
-                    }
-                    setAuthLoading(true);
-                    setAuthError(null);
-                    try {
-                      const res = isSignUpMode 
-                        ? await signUp(email.trim(), password) 
-                        : await signIn(email.trim(), password);
-                      if (res.error) {
-                        setAuthError(res.error.message);
-                      } else {
-                        Alert.alert('Success', isSignUpMode ? 'Account registered!' : 'Logged in successfully!');
-                        setEmail('');
-                        setPassword('');
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={authLoading ? "Processing..." : (isSignUpMode ? "Register" : "Sign In")}
+                    onPress={async () => {
+                      if (!email.trim() || !password.trim()) {
+                        setAuthError('Please fill in both email and password.');
+                        return;
                       }
-                    } catch (e: any) {
-                      setAuthError(e.message || 'Auth action failed.');
-                    } finally {
-                      setAuthLoading(false);
-                    }
-                  }}
-                  isDark={isDark}
-                  variant="primary"
-                  style={{ flex: 1 }}
-                  disabled={authLoading}
-                />
-                <Button
-                  label={isSignUpMode ? "Use Sign In" : "Use Register"}
-                  onPress={() => {
-                    setIsSignUpMode(!isSignUpMode);
-                    setAuthError(null);
-                  }}
-                  isDark={isDark}
-                  variant="outline"
-                  style={{ flex: 1 }}
-                />
+                      if (isSignUpMode && !fullName.trim()) {
+                        setAuthError('Please enter your full name.');
+                        return;
+                      }
+                      setAuthLoading(true);
+                      setAuthError(null);
+                      try {
+                        const res = isSignUpMode 
+                          ? await signUp(email.trim(), password, fullName.trim()) 
+                          : await signIn(email.trim(), password);
+                        if (res.error) {
+                          setAuthError(res.error.message);
+                        } else {
+                          Alert.alert('Success', isSignUpMode ? 'Account registered!' : 'Logged in successfully!');
+                          setEmail('');
+                          setPassword('');
+                          setFullName('');
+                        }
+                      } catch (e: any) {
+                        setAuthError(e.message || 'Auth action failed.');
+                      } finally {
+                        setAuthLoading(false);
+                      }
+                    }}
+                    isDark={isDark}
+                    variant="primary"
+                    disabled={authLoading}
+                    style={{ backgroundColor: colors.primary }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={isSignUpMode ? "Use Sign In" : "Use Register"}
+                    onPress={() => {
+                      setIsSignUpMode(!isSignUpMode);
+                      setAuthError(null);
+                    }}
+                    isDark={isDark}
+                    variant="outline"
+                    style={{ borderColor: colors.primary }}
+                    textStyle={{ color: colors.primary }}
+                  />
+                </View>
               </View>
             </View>
           )}
@@ -240,12 +291,13 @@ export default function SettingsScreen() {
             icon={<GraduationCap size={13} color={colors.primary} />}
             title="COMPETITIVE EXAM FOCUS"
           />
-          <Text style={[styles.desc, { color: colors.textMuted }]}>
+          <Text style={{ fontSize: 11, color: colors.textMuted, lineHeight: 15 }}>
             Adjusting this filters default MCQ sequences, timer presets, and question priority to suit your exam board.
           </Text>
           <View style={styles.focusGrid}>
             {EXAM_FOCUSES.map((ef) => {
               const selected = examFocus === ef.key;
+              const IconComp = ef.icon;
               return (
                 <TouchableOpacity
                   key={ef.key}
@@ -253,23 +305,50 @@ export default function SettingsScreen() {
                   accessibilityRole="radio"
                   accessibilityLabel={ef.label}
                   accessibilityState={{ selected }}
-                  style={[
-                    styles.focusChip,
-                    {
-                      backgroundColor: selected
-                        ? `${colors.primary}1A`
-                        : isDark ? '#1c1c1f' : '#f3f4f6',
-                      borderColor: selected ? colors.primary : colors.border,
-                    },
-                  ]}
+                  style={{
+                    backgroundColor: selected ? 'rgba(124, 111, 240, 0.1)' : colors.card,
+                    borderColor: selected ? colors.primary : colors.border,
+                    borderWidth: 0.5,
+                    borderRadius: 14,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    minHeight: 52,
+                  }}
                 >
-                  {selected && <CheckCircle size={11} color={colors.primary} />}
-                  <View>
-                    <Text style={[styles.focusChipLabel, { color: selected ? colors.primary : colors.text }]}>
-                      {ef.label}
-                    </Text>
-                    <Text style={[styles.focusChipSub, { color: colors.textMuted }]}>{ef.sub}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    <View style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: selected ? 'rgba(124, 111, 240, 0.2)' : 'rgba(255,255,255,0.05)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <IconComp size={16} color={selected ? '#c6bfff' : colors.textMuted} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{
+                        fontSize: 13,
+                        fontWeight: '600',
+                        color: selected ? '#c6bfff' : colors.text,
+                      }}>
+                        {ef.label}
+                      </Text>
+                      <Text style={{
+                        fontSize: 10,
+                        color: selected ? 'rgba(198, 191, 255, 0.7)' : colors.textMuted,
+                        marginTop: 1,
+                      }}>
+                        {ef.sub}
+                      </Text>
+                    </View>
                   </View>
+                  {selected && (
+                    <CheckCircle size={18} color={colors.primary} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -288,8 +367,8 @@ export default function SettingsScreen() {
           />
           <View style={styles.themeRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.toggleLabel, { color: colors.text }]}>Theme Appearance</Text>
-              <Text style={[styles.toggleSub, { color: colors.textMuted }]}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Theme Appearance</Text>
+              <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2, lineHeight: 13 }}>
                 Currently: {isDark ? 'Dark Mode (Eye Friendly)' : 'Light Mode'}
               </Text>
             </View>
@@ -297,15 +376,23 @@ export default function SettingsScreen() {
               onPress={toggleTheme}
               accessibilityRole="button"
               accessibilityLabel={`Switch to ${isDark ? 'Light' : 'Dark'} mode`}
-              style={[
-                styles.themeBtn,
-                { backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderColor: colors.border },
-              ]}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                borderRadius: 12,
+                borderWidth: 0.5,
+                borderColor: colors.border,
+                backgroundColor: isDark ? '#0E1117' : '#f3f4f6',
+                minHeight: 44,
+              }}
             >
               {isDark
-                ? <Moon size={13} color="#f59e0b" />
-                : <Sun size={13} color="#f59e0b" />}
-              <Text style={[styles.themeBtnText, { color: colors.text }]}>
+                ? <Moon size={13} color="#F59E0B" />
+                : <Sun size={13} color="#F59E0B" />}
+              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.text }}>
                 Switch to {isDark ? 'Light' : 'Dark'}
               </Text>
             </TouchableOpacity>
@@ -357,7 +444,7 @@ export default function SettingsScreen() {
             icon={<Shield size={13} color={colors.danger} />}
             title="SYSTEM CONTROL"
           />
-          <Text style={[styles.desc, { color: colors.textMuted }]}>
+          <Text style={{ fontSize: 11, color: colors.textMuted, lineHeight: 15 }}>
             Flush all locally stored learning metrics. This does not remove default seeded MCQs from the database.
           </Text>
           <Button
@@ -367,18 +454,27 @@ export default function SettingsScreen() {
             variant="danger"
             icon={<Trash2 size={13} color={isDark ? '#f87171' : '#991b1b'} />}
             textStyle={styles.dangerBtnText}
+            style={{ borderWidth: 0.5 }}
           />
         </Card>
 
         {/* ── FOOTER ── */}
         <View style={styles.footer}>
           <HeartHandshake size={16} color={colors.textMuted} />
-          <Text style={[styles.footerTitle, { color: colors.textMuted }]}>Exam Topper</Text>
-          <Text style={[styles.footerSub, { color: colors.textMuted }]}>
+          <Text style={{ fontSize: 13, fontWeight: '900', color: colors.textMuted }}>Exam Topper</Text>
+          <Text style={{ fontSize: 10, textAlign: 'center', color: colors.textMuted }}>
             Designed for ETEA, KPPSC & Competitive Exam Candidates
           </Text>
-          <View style={[styles.versionBadge, { backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6' }]}>
-            <Text style={[styles.versionText, { color: colors.textMuted }]}>
+          <View style={{
+            paddingHorizontal: 12,
+            paddingVertical: 5,
+            borderRadius: 10,
+            marginTop: 4,
+            backgroundColor: isDark ? '#161B27' : '#f3f4f6',
+            borderColor: colors.border,
+            borderWidth: 0.5,
+          }}>
+            <Text style={{ fontSize: 9, fontWeight: '700', color: colors.textMuted }}>
               v2.0.0 • Expo Mobile Build
             </Text>
           </View>

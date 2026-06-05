@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ScrollView,
   View,
@@ -8,7 +8,6 @@ import {
   Switch,
   Platform,
   Alert,
-  Dimensions,
   Share,
   ActivityIndicator,
 } from 'react-native';
@@ -47,10 +46,8 @@ const FONTS = [
   { id: 'monospace', name: 'Code Mono' },
 ];
 
-const screenWidth = Dimensions.get('window').width;
-
 export default function WallpaperScreen() {
-  const { vocab, daySeed, currentTheme } = useApp();
+  const { vocab, daySeed, currentTheme, autoDownloadWallpaper } = useApp();
   const isDark = currentTheme === 'dark';
 
   // State
@@ -58,14 +55,23 @@ export default function WallpaperScreen() {
   const [selectedFont, setSelectedFont] = useState('Poppins');
   const [showUrdu, setShowUrdu] = useState(true);
   const [showDetails, setShowDetails] = useState(true); // synonyms & example
-  const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
-  const [showGuide, setShowGuide] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSettingWallpaper, setIsSettingWallpaper] = useState(false);
 
   // Refs for capturing
   const mobileRef = useRef<ViewShot>(null);
   const desktopRef = useRef<ViewShot>(null);
+
+  useEffect(() => {
+    // Auto update wallpaper if enabled
+    if (autoDownloadWallpaper && Platform.OS === 'android') {
+      // Small delay to ensure the view is rendered and refs are attached
+      const timer = setTimeout(() => {
+        handleApplyWallpaper('both', true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [vocab, daySeed, autoDownloadWallpaper, selectedGradientIdx, showUrdu, showDetails]);
 
   const colors = {
     bg: isDark ? '#09090b' : '#f9fafb',
@@ -406,14 +412,14 @@ export default function WallpaperScreen() {
     }
   };
 
-  const handleApplyWallpaper = async (target: 'system' | 'lock' | 'both') => {
+  const handleApplyWallpaper = async (target: 'system' | 'lock' | 'both', silent: boolean = false) => {
     if (Platform.OS === 'web') {
-      Alert.alert('Not Supported', 'Setting device wallpaper directly is not supported in the web browser. Please download the image and set it manually.');
+      if (!silent) Alert.alert('Not Supported', 'Setting device wallpaper directly is not supported in the web browser. Please download the image and set it manually.');
       return;
     }
     
     if (Platform.OS === 'ios') {
-      Alert.alert(
+      if (!silent) Alert.alert(
         'iOS Restriction', 
         'iOS does not allow third-party apps to change the wallpaper programmatically. Please use the "Download" button to save it to your Photos app, then set it from your iOS settings.',
         [
@@ -424,7 +430,7 @@ export default function WallpaperScreen() {
       return;
     }
 
-    setIsSettingWallpaper(true);
+    if (!silent) setIsSettingWallpaper(true);
     try {
       if (mobileRef.current) {
         const uri = await captureRef(mobileRef, {
@@ -433,34 +439,31 @@ export default function WallpaperScreen() {
         });
 
         const success = await setDeviceWallpaper(uri, target);
-        if (success) {
-          Alert.alert('🎉 Success!', `Today's Daily Vocabulary has been applied to your device ${target === 'system' ? 'Home Screen' : target === 'lock' ? 'Lock Screen' : 'Home and Lock Screens'}!`);
-        } else {
-          Alert.alert('Failed', 'Unable to set wallpaper.');
+        if (!silent) {
+          if (success) {
+            Alert.alert('🎉 Success!', `Today's Daily Vocabulary has been applied to your device ${target === 'system' ? 'Home Screen' : target === 'lock' ? 'Lock Screen' : 'Home and Lock Screens'}!`);
+          } else {
+            Alert.alert('Failed', 'Unable to set wallpaper.');
+          }
         }
       }
     } catch (e: any) {
       console.error(e);
-      Alert.alert('Error', e.message || 'An unexpected error occurred while setting the wallpaper.');
+      if (!silent) Alert.alert('Error', e.message || 'An unexpected error occurred while setting the wallpaper.');
     } finally {
-      setIsSettingWallpaper(false);
+      if (!silent) setIsSettingWallpaper(false);
     }
   };
 
   // Dynamic Font styles for preview rendering
   const getPreviewFontStyle = (weight: 'regular' | 'medium' | 'semibold' | 'bold' = 'regular') => {
-    if (selectedFont === 'Poppins') {
-      const familyMap = {
-        regular: 'Poppins-Regular',
-        medium: 'Poppins-Medium',
-        semibold: 'Poppins-SemiBold',
-        bold: 'Poppins-Bold',
-      };
-      return { fontFamily: familyMap[weight] };
-    }
-    if (selectedFont === 'serif') return { fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' };
-    if (selectedFont === 'monospace') return { fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' };
-    return {};
+    const familyMap = {
+      regular: 'Poppins-Regular',
+      medium: 'Poppins-Medium',
+      semibold: 'Poppins-SemiBold',
+      bold: 'Poppins-Bold',
+    };
+    return { fontFamily: familyMap[weight] };
   };
 
   return (
@@ -480,133 +483,53 @@ export default function WallpaperScreen() {
         
         {/* Responsive Preview Cards */}
         <View style={styles.previewContainer}>
-          <View style={styles.previewTabs}>
-            <TouchableOpacity
-              onPress={() => setPreviewMode('mobile')}
-              style={[
-                styles.previewTab,
-                previewMode === 'mobile' && { backgroundColor: isDark ? '#1c1c1f' : '#e0e7ff', borderColor: colors.primary }
-              ]}
-            >
-              <Smartphone size={14} color={previewMode === 'mobile' ? colors.primary : colors.textMuted} />
-              <Text style={[styles.previewTabText, { color: previewMode === 'mobile' ? colors.primary : colors.textMuted }]}>
-                Mobile Portrait (9:16)
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setPreviewMode('desktop')}
-              style={[
-                styles.previewTab,
-                previewMode === 'desktop' && { backgroundColor: isDark ? '#1c1c1f' : '#e0e7ff', borderColor: colors.primary }
-              ]}
-            >
-              <Monitor size={14} color={previewMode === 'desktop' ? colors.primary : colors.textMuted} />
-              <Text style={[styles.previewTabText, { color: previewMode === 'desktop' ? colors.primary : colors.textMuted }]}>
-                Desktop Landscape (16:9)
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Interactive Live Mockup */}
           <View style={[styles.mockupWrapper, { borderColor: colors.border }]}>
-            {previewMode === 'mobile' ? (
-              // Mobile mockup aspect ratio
-              <View style={[styles.mobileMockup, { backgroundColor: selectedGradient.colors[1] }]}>
-                <Svg style={StyleSheet.absoluteFillObject}>
-                  <Defs>
-                    <SvgGradient id="gradMock" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <Stop offset="0%" stopColor={selectedGradient.colors[0]} />
-                      <Stop offset="100%" stopColor={selectedGradient.colors[1]} />
-                    </SvgGradient>
-                  </Defs>
-                  <Rect width="100%" height="100%" fill="url(#gradMock)" />
-                </Svg>
+            <View style={[styles.mobileMockup, { backgroundColor: selectedGradient.colors[1] }]}>
+              <Svg style={StyleSheet.absoluteFillObject}>
+                <Defs>
+                  <SvgGradient id="gradMock" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <Stop offset="0%" stopColor={selectedGradient.colors[0]} />
+                    <Stop offset="100%" stopColor={selectedGradient.colors[1]} />
+                  </SvgGradient>
+                </Defs>
+                <Rect width="100%" height="100%" fill="url(#gradMock)" />
+              </Svg>
 
-                <View style={styles.mockupInner}>
-                  <Text style={[styles.mockupBranding, { color: 'rgba(255,255,255,0.4)', ...getPreviewFontStyle('bold') }]}>
-                    DAILY VOCABULARY
-                  </Text>
+              <View style={styles.mockupInner}>
+                <Text style={[styles.mockupBranding, { color: 'rgba(255,255,255,0.4)', ...getPreviewFontStyle('bold') }]}>
+                  DAILY VOCABULARY
+                </Text>
 
-                  <View style={styles.mockupWordList}>
-                    {todayWords.map((item, idx) => (
-                      <View key={item.id} style={styles.mockupWordBlock}>
-                        {idx > 0 && <View style={styles.mockupDivider} />}
-                        <Text style={[styles.mockupWord, getPreviewFontStyle('bold')]}>
-                          {item.word.toUpperCase()}
+                <View style={styles.mockupWordList}>
+                  {todayWords.map((item, idx) => (
+                    <View key={item.id} style={styles.mockupWordBlock}>
+                      {idx > 0 && <View style={styles.mockupDivider} />}
+                      <Text style={[styles.mockupWord, getPreviewFontStyle('bold')]}>
+                        {item.word.toUpperCase()}
+                      </Text>
+                      {showUrdu && item.urduMeaning && (
+                        <Text style={[styles.mockupUrdu, { color: selectedGradient.accent }, getPreviewFontStyle('medium')]}>
+                          {item.urduMeaning}
                         </Text>
-                        {showUrdu && item.urduMeaning && (
-                          <Text style={[styles.mockupUrdu, { color: selectedGradient.accent }, getPreviewFontStyle('medium')]}>
-                            {item.urduMeaning}
-                          </Text>
-                        )}
-                        <Text style={[styles.mockupMeaning, getPreviewFontStyle('regular')]} numberOfLines={2}>
-                          {item.meaning}
+                      )}
+                      <Text style={[styles.mockupMeaning, getPreviewFontStyle('regular')]} numberOfLines={2}>
+                        {item.meaning}
+                      </Text>
+                      {showDetails && item.synonyms && item.synonyms.length > 0 && (
+                        <Text style={[styles.mockupSynonyms, getPreviewFontStyle('regular')]} numberOfLines={1}>
+                          Syns: {item.synonyms.slice(0, 2).join(', ')}
                         </Text>
-                        {showDetails && item.synonyms && item.synonyms.length > 0 && (
-                          <Text style={[styles.mockupSynonyms, getPreviewFontStyle('regular')]} numberOfLines={1}>
-                            Syns: {item.synonyms.slice(0, 2).join(', ')}
-                          </Text>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-
-                  <Text style={[styles.mockupWatermark, { color: 'rgba(255,255,255,0.2)', ...getPreviewFontStyle('semibold') }]}>
-                    EXAMTOPPER.PK
-                  </Text>
+                      )}
+                    </View>
+                  ))}
                 </View>
+
+                <Text style={[styles.mockupWatermark, { color: 'rgba(255,255,255,0.2)', ...getPreviewFontStyle('semibold') }]}>
+                  EXAMTOPPER.PK
+                </Text>
               </View>
-            ) : (
-              // Desktop mockup aspect ratio
-              <View style={[styles.desktopMockup, { backgroundColor: selectedGradient.colors[1] }]}>
-                <Svg style={StyleSheet.absoluteFillObject}>
-                  <Defs>
-                    <SvgGradient id="gradMockDesk" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <Stop offset="0%" stopColor={selectedGradient.colors[0]} />
-                      <Stop offset="100%" stopColor={selectedGradient.colors[1]} />
-                    </SvgGradient>
-                  </Defs>
-                  <Rect width="100%" height="100%" fill="url(#gradMockDesk)" />
-                </Svg>
-
-                <View style={styles.mockupInnerDesktop}>
-                  <Text style={[styles.mockupBrandingDesktop, { color: 'rgba(255,255,255,0.4)', ...getPreviewFontStyle('bold') }]}>
-                    DAILY VOCABULARY WALLPAPER
-                  </Text>
-
-                  <View style={styles.mockupColumns}>
-                    {todayWords.map((item, idx) => (
-                      <View key={item.id} style={styles.mockupCol}>
-                        {idx > 0 && <View style={styles.mockupVerticalDivider} />}
-                        <View style={{ flex: 1, paddingHorizontal: 10, alignItems: 'center' }}>
-                          <Text style={[styles.mockupWordDesk, getPreviewFontStyle('bold')]}>
-                            {item.word.toUpperCase()}
-                          </Text>
-                          {showUrdu && item.urduMeaning && (
-                            <Text style={[styles.mockupUrduDesk, { color: selectedGradient.accent }, getPreviewFontStyle('medium')]}>
-                              {item.urduMeaning}
-                            </Text>
-                          )}
-                          <Text style={[styles.mockupMeaningDesk, getPreviewFontStyle('regular')]} numberOfLines={2}>
-                            {item.meaning}
-                          </Text>
-                          {showDetails && item.synonyms && item.synonyms.length > 0 && (
-                            <Text style={[styles.mockupSynonymsDesk, getPreviewFontStyle('regular')]} numberOfLines={1}>
-                              Synonyms: {item.synonyms.slice(0, 2).join(', ')}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-
-                  <Text style={[styles.mockupWatermarkDesk, { color: 'rgba(255,255,255,0.2)', ...getPreviewFontStyle('semibold') }]}>
-                    EXAMTOPPER.PK • SYLLABUS BUILDER
-                  </Text>
-                </View>
-              </View>
-            )}
+            </View>
           </View>
         </View>
 
@@ -631,26 +554,6 @@ export default function WallpaperScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-
-          {/* Typography Selection */}
-          <Text style={[styles.label, { color: colors.textMuted, marginTop: 14 }]}>Font Typography</Text>
-          <View style={styles.fontsRow}>
-            {FONTS.map((f) => (
-              <TouchableOpacity
-                key={f.id}
-                onPress={() => setSelectedFont(f.id)}
-                style={[
-                  styles.fontBtn,
-                  selectedFont === f.id && { borderColor: colors.primary, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6' },
-                  { borderColor: colors.border }
-                ]}
-              >
-                <Text style={[styles.fontBtnText, { color: colors.text }, selectedFont === f.id && { fontWeight: 'bold' }]}>
-                  {f.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
 
           {/* Content Switches */}
           <View style={[styles.switchRow, { borderBottomColor: colors.border, borderBottomWidth: 1, paddingBottom: 10, marginTop: 14 }]}>
@@ -680,22 +583,13 @@ export default function WallpaperScreen() {
           </View>
         </View>
 
-        {/* Download Buttons */}
         <View style={styles.downloadButtonsContainer}>
           <TouchableOpacity
             onPress={() => handleDownload('mobile')}
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
           >
             <Download size={18} color="#fff" />
-            <Text style={styles.actionBtnText}>Download Mobile (1080x1920)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => handleDownload('desktop')}
-            style={[styles.actionBtn, { backgroundColor: '#10b981' }]}
-          >
-            <Download size={18} color="#fff" />
-            <Text style={styles.actionBtnText}>Download Desktop (1920x1080)</Text>
+            <Text style={styles.actionBtnText}>Download to Gallery</Text>
           </TouchableOpacity>
         </View>
 
@@ -704,7 +598,7 @@ export default function WallpaperScreen() {
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>📱 Apply as Device Wallpaper</Text>
             <Text style={[styles.switchSub, { color: colors.textMuted, marginBottom: 10 }]}>
-              Instantly set today's vocabulary wallpaper on your phone's background.
+              Instantly set today's vocabulary wallpaper on your phone's background. Enable auto-download in settings to do this automatically.
             </Text>
 
             <View style={{ gap: 8 }}>
@@ -743,48 +637,6 @@ export default function WallpaperScreen() {
             </View>
           </View>
         )}
-
-        {/* Set Wallpaper Guide */}
-        <View style={[styles.guideCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <TouchableOpacity
-            onPress={() => setShowGuide(!showGuide)}
-            style={styles.guideHeader}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Info size={16} color={colors.primary} />
-              <Text style={[styles.guideTitle, { color: colors.text }]}>Setup Guide: How to Set Wallpaper</Text>
-            </View>
-            {showGuide ? <ChevronUp size={16} color={colors.textMuted} /> : <ChevronDown size={16} color={colors.textMuted} />}
-          </TouchableOpacity>
-
-          {showGuide && (
-            <View style={[styles.guideBody, { borderTopColor: colors.border }]}>
-              <View style={styles.guideSection}>
-                <Text style={[styles.guideSectionTitle, { color: colors.primary }]}>💻 Desktop integration (Windows/Mac)</Text>
-                <Text style={[styles.guideText, { color: colors.textMuted }]}>
-                  • **Windows**: Right-click the downloaded image in your Downloads folder and choose **"Set as desktop background"**.
-                </Text>
-                <Text style={[styles.guideText, { color: colors.textMuted }]}>
-                  • **macOS**: Right-click your desktop screen background → choose **"Change Wallpaper..."** → click **"Add Folder/Photo"** and point to the downloaded file.
-                </Text>
-              </View>
-
-              <View style={styles.guideSection}>
-                <Text style={[styles.guideSectionTitle, { color: colors.primary }]}>📱 Mobile integration (Android/iOS)</Text>
-                <Text style={[styles.guideText, { color: colors.textMuted }]}>
-                  • Open the photo inside your gallery, click the **Options menu (...)** or **Share button** and select **"Set as Wallpaper / Lockscreen"**.
-                </Text>
-              </View>
-
-              <View style={[styles.tipBox, { backgroundColor: isDark ? 'rgba(99,102,241,0.1)' : '#f5f3ff' }]}>
-                <Sparkles size={14} color={colors.primary} />
-                <Text style={[styles.tipText, { color: colors.text }]}>
-                  **Pro Tip**: Go to your app Settings page and toggle **"Auto-Download Daily Wallpaper"** to have today's layout saved to your gallery automatically on first boot!
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
       </ScrollView>
 
       {/* ─────────────────────────────────────────────────────────────────────────────
@@ -856,71 +708,6 @@ export default function WallpaperScreen() {
             </View>
           </ViewShot>
 
-          {/* 2. Desktop Capture Template (1920 x 1080) */}
-          <ViewShot ref={desktopRef} options={{ format: 'png', quality: 1.0 }} style={styles.desktopCaptureFrame}>
-            <View style={[styles.captureBackground, { backgroundColor: selectedGradient.colors[1] }]}>
-              <Svg style={StyleSheet.absoluteFillObject}>
-                <Defs>
-                  <SvgGradient id="gradDesktopCap" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <Stop offset="0%" stopColor={selectedGradient.colors[0]} />
-                    <Stop offset="100%" stopColor={selectedGradient.colors[1]} />
-                  </SvgGradient>
-                </Defs>
-                <Rect width="100%" height="100%" fill="url(#gradDesktopCap)" />
-              </Svg>
-
-              {/* Decorative accent border */}
-              <View style={styles.captureBorder} />
-
-              <View style={styles.captureInnerDesktop}>
-                <Text style={[styles.captureBrandingDesk, getPreviewFontStyle('bold')]}>
-                  📅 DAILY VOCABULARY DESKTOP WALLPAPER
-                </Text>
-                <Text style={[styles.captureSubtitleDesk, { color: selectedGradient.accent }, getPreviewFontStyle('semibold')]}>
-                  EXAM TOPPER PREP • {new Date().toDateString().toUpperCase()}
-                </Text>
-
-                <View style={styles.captureColumnsDesk}>
-                  {todayWords.map((item, idx) => (
-                    <View key={item.id} style={styles.captureColDesk}>
-                      {idx > 0 && <View style={styles.captureVerticalDividerDesk} />}
-                      <View style={{ flex: 1, paddingHorizontal: 40, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={[styles.captureWordDesk, getPreviewFontStyle('bold')]}>
-                          {item.word.toUpperCase()}
-                        </Text>
-                        {showUrdu && item.urduMeaning && (
-                          <Text style={[styles.captureUrduDesk, { color: selectedGradient.accent }, getPreviewFontStyle('medium')]}>
-                            {item.urduMeaning}
-                          </Text>
-                        )}
-                        <Text style={[styles.captureMeaningDesk, getPreviewFontStyle('regular')]}>
-                          {item.meaning}
-                        </Text>
-                        {showDetails && (
-                          <View style={{ gap: 8, alignItems: 'center', marginTop: 14 }}>
-                            {item.synonyms && item.synonyms.length > 0 && (
-                              <Text style={[styles.captureSynonymsDesk, getPreviewFontStyle('regular')]}>
-                                Synonyms: {item.synonyms.slice(0, 3).join(', ')}
-                              </Text>
-                            )}
-                            {item.example && (
-                              <Text style={[styles.captureExampleDesk, getPreviewFontStyle('regular')]}>
-                                "{item.example}"
-                              </Text>
-                            )}
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-
-                <Text style={[styles.captureWatermarkDesk, getPreviewFontStyle('semibold')]}>
-                  WWW.EXAMTOPPER.PK • MASTER YOUR SYLLABUS EVERY DAY
-                </Text>
-              </View>
-            </View>
-          </ViewShot>
         </View>
       )}
     </View>

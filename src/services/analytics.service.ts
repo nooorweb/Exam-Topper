@@ -6,7 +6,7 @@
 import { supabase } from '../lib/supabase';
 
 export interface WeakArea {
-  category: string;
+  subject: string;         // renamed from category → subject to match new schema
   incorrect_count: number;
   accuracy_pct: number;
 }
@@ -14,7 +14,7 @@ export interface WeakArea {
 export interface PerformanceTrendPoint {
   score_percent: number;
   completed_at: string;
-  category: string;
+  subject: string;         // renamed from category → subject
 }
 
 export interface DashboardSummary {
@@ -26,20 +26,20 @@ export interface DashboardSummary {
 }
 
 export interface CategoryBreakdown {
-  category: string;
+  subject: string;         // renamed from category → subject
   attempts: number;
   avgScore: number;
 }
 
 export const AnalyticsService = {
   /**
-   * Get user's top 5 weakest categories sorted by accuracy ascending.
+   * Get user's top 5 weakest subjects sorted by accuracy ascending.
    * Uses the pre-aggregated `weak_areas` table — zero re-scanning of attempt_answers.
    */
   getWeakAreas: async (userId: string, limit = 5): Promise<WeakArea[]> => {
     const { data } = await supabase
       .from('weak_areas')
-      .select('category, incorrect_count, accuracy_pct')
+      .select('subject, incorrect_count, accuracy_pct')
       .eq('user_id', userId)
       .order('accuracy_pct', { ascending: true }) // Worst first
       .limit(limit);
@@ -58,7 +58,7 @@ export const AnalyticsService = {
     since.setDate(since.getDate() - days);
     const { data } = await supabase
       .from('quiz_attempts')
-      .select('score_percent, completed_at, category')
+      .select('score_percent, completed_at, subject')
       .eq('user_id', userId)
       .gte('completed_at', since.toISOString())
       .order('completed_at', { ascending: true });
@@ -91,29 +91,28 @@ export const AnalyticsService = {
   },
 
   /**
-   * Per-category attempt count + average score.
+   * Per-subject attempt count + average score.
    * Aggregated on the client from quiz_attempts to avoid a heavy GROUP BY.
    */
   getCategoryBreakdown: async (userId: string): Promise<CategoryBreakdown[]> => {
     const { data } = await supabase
       .from('quiz_attempts')
-      .select('category, score_percent')
+      .select('subject, score_percent')
       .eq('user_id', userId);
 
     if (!data || data.length === 0) return [];
 
     const map: Record<string, { attempts: number; totalScore: number }> = {};
     for (const row of data) {
-      if (!map[row.category]) map[row.category] = { attempts: 0, totalScore: 0 };
-      map[row.category].attempts++;
-      map[row.category].totalScore += row.score_percent;
+      if (!map[row.subject]) map[row.subject] = { attempts: 0, totalScore: 0 };
+      map[row.subject].attempts++;
+      map[row.subject].totalScore += row.score_percent;
     }
 
-    return Object.entries(map).map(([category, { attempts, totalScore }]) => ({
-      category,
+    return Object.entries(map).map(([subject, { attempts, totalScore }]) => ({
+      subject,
       attempts,
       avgScore: Math.round((totalScore / attempts) * 10) / 10,
     }));
   },
 };
-

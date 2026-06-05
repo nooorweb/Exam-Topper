@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
-  Dimensions,
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +19,6 @@ import { AI_QUIZ_TEMP_KEY } from '../../../app/quiz-session';
 import { Text, Button } from '../common';
 import { typography } from '../../lib/typography';
 
-const { width: SW } = Dimensions.get('window');
 
 const EXAM_OPTIONS = ['KPPSC', 'FPSC', 'ETEA', 'NTS', 'CSS', 'Other'];
 const SUBJECT_OPTIONS = [
@@ -33,7 +31,7 @@ const SUBJECT_OPTIONS = [
   'Current Affairs',
   'Mixed',
 ];
-const QUESTIONS_OPTIONS = [10, 20, 30];
+const QUESTIONS_OPTIONS = [15, 30, 40];
 const DIFFICULTY_OPTIONS = ['Easy', 'Medium', 'Hard', 'Mixed'];
 
 interface AIQuizModalProps {
@@ -53,7 +51,7 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
   const [exam, setExam] = useState<string>('KPPSC');
   const [post, setPost] = useState<string>('');
   const [subject, setSubject] = useState<string[]>(['General Knowledge']);
-  const [numQuestions, setNumQuestions] = useState<number>(20);
+  const [numQuestions, setNumQuestions] = useState<number>(15);
   const [difficulty, setDifficulty] = useState<string>('Medium');
   const [language, setLanguage] = useState<string>('English');
 
@@ -80,7 +78,7 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
           } else {
             setSubject(['General Knowledge']);
           }
-          setNumQuestions(parsed.numQuestions || 20);
+          setNumQuestions(parsed.numQuestions || 15);
           setDifficulty(parsed.difficulty || 'Medium');
           setLanguage('English');
           setHasSavedSettings(true);

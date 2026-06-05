@@ -29,6 +29,7 @@ import {
   BarChart3,
   Sparkles,
   Target,
+  Bell,
 } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import ViewShot, { captureRef } from 'react-native-view-shot';
@@ -45,11 +46,11 @@ import PerformanceTrendChart from '../../src/components/dashboard/PerformanceTre
 import SuggestedQuizCard from '../../src/components/dashboard/SuggestedQuizCard';
 
 const SUBJECT_CONFIGS: Record<string, { label: string; color: string }> = {
-  'English': { label: 'ENG', color: '#3b82f6' },
-  'General Knowledge': { label: 'GK', color: '#f97316' },
-  'Pakistan Studies': { label: 'PAK', color: '#ef4444' },
-  'Computer Science': { label: 'CS', color: '#a855f7' },
-  'Mathematics': { label: 'MATH', color: '#10b981' },
+  'English': { label: 'ENG', color: '#60A5FA' },
+  'General Knowledge': { label: 'GK', color: '#F59E0B' },
+  'Pakistan Studies': { label: 'PAK', color: '#F87171' },
+  'Computer Science': { label: 'CS', color: '#A78BFA' },
+  'Mathematics': { label: 'MATH', color: '#34D399' },
   'Islamiat': { label: 'ISL', color: '#06b6d4' },
 };
 
@@ -123,6 +124,7 @@ export default function DashboardScreen() {
     autoDownloadWallpaper,
     setAutoDownloadWallpaper,
     user,
+    profile,
     isNewDayDetected,
     setIsNewDayDetected,
   } = useApp();
@@ -221,16 +223,16 @@ export default function DashboardScreen() {
   }, [completedTopicIds]);
 
   const colors = {
-    bg: isDark ? '#09090b' : '#f9fafb',
-    card: isDark ? '#121214' : '#ffffff',
-    text: isDark ? '#f4f4f5' : '#1f2937',
-    textMuted: isDark ? '#9ca3af' : '#6b7280',
-    border: isDark ? '#1f1f23' : '#f3f4f6',
-    borderAccent: isDark ? '#2a2a32' : '#e5e7eb',
-    primary: '#6366f1',
-    primaryDark: '#4f46e5',
-    accent: '#fbbf24',
-    success: '#10b981',
+    bg: isDark ? '#0E1117' : '#f9fafb',
+    card: isDark ? '#161B27' : '#ffffff',
+    text: isDark ? '#e1e2eb' : '#1f2937',
+    textMuted: isDark ? '#c8c4d6' : '#6b7280',
+    border: isDark ? '#2A2D3A' : '#f3f4f6',
+    borderAccent: isDark ? '#2A2D3A' : '#e5e7eb',
+    primary: '#7C6FF0',
+    primaryDark: '#594aca',
+    accent: '#F59E0B',
+    success: '#10B981',
     danger: '#ef4444',
   };
 
@@ -414,15 +416,64 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Online/Offline Status Indicator */}
-      <View style={styles.statusHeader}>
-        <View style={styles.statusLabelContainer}>
-          <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
-          <Text style={[styles.statusLabel, dynamicStyles.textMuted]}>
-            Syllabus Sync: 2026 Core Live
+      {/* Top App Bar Header Row */}
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 8,
+        marginBottom: 4,
+      }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase' }}>
+            EXAM TOPPER
+          </Text>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary, marginTop: 2 }}>
+            Hey, {profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Aspirant'}! 👋
+          </Text>
+        </View>
+        <TouchableOpacity 
+          onPress={() => showToast("No new notifications")}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            borderWidth: 0.5,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Bell size={18} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Status Pills Horizontal Row */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={{ gap: 10, paddingBottom: 4 }}
+      >
+        {/* Streak Pill */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          borderColor: 'rgba(245, 158, 11, 0.2)',
+          borderWidth: 1,
+          borderRadius: 20,
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+        }}>
+          <Flame size={12} color="#F59E0B" fill="#F59E0B" />
+          <Text style={{ fontSize: 11, fontWeight: '600', color: '#F59E0B' }}>
+            {stats.streak}d Streak
           </Text>
         </View>
 
+        {/* Live Sync / Offline Toggle Pill */}
         <TouchableOpacity
           onPress={() => {
             setSimulatedOffline(!simulatedOffline);
@@ -432,71 +483,71 @@ export default function DashboardScreen() {
                 : 'Offline Mode Active! Loaded directly from local SQLite block.'
             );
           }}
-          style={[
-            styles.syncBadge,
-            {
-              backgroundColor: simulatedOffline ? '#fef3c7' : '#ecfdf5',
-              borderColor: simulatedOffline ? '#fde047' : '#a7f3d0',
-            },
-          ]}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: simulatedOffline ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+            borderColor: simulatedOffline ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+            borderWidth: 1,
+            borderRadius: 20,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+          }}
         >
-          {simulatedOffline ? (
-            <View style={styles.badgeFlex}>
-              <WifiOff size={10} color="#b45309" />
-              <Text style={[styles.syncBadgeText, { color: '#b45309' }]}>Offline Mode</Text>
-            </View>
-          ) : (
-            <View style={styles.badgeFlex}>
-              <Wifi size={10} color="#047857" />
-              <Text style={[styles.syncBadgeText, { color: '#047857' }]}>Live Sync</Text>
-            </View>
-          )}
+          <View style={{
+            width: 6,
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: simulatedOffline ? '#F59E0B' : '#10B981',
+          }} />
+          <Text style={{ fontSize: 11, fontWeight: '600', color: simulatedOffline ? '#F59E0B' : '#10B981' }}>
+            {simulatedOffline ? 'Offline Mode' : 'Live Sync'}
+          </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
-      {/* Rebuilt Hero Card (replaces the purple blob) */}
-      <View style={[styles.heroCardContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.heroHeaderRow}>
-          <View>
-            <Text style={[styles.heroGreeting, dynamicStyles.text]}>
-              Hey, {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Aspirant'}!
-            </Text>
-            <Text style={[styles.heroSubText, dynamicStyles.textMuted]}>
-              Ready to master your syllabus today?
-            </Text>
-          </View>
-
-          {/* Streak badge front and right */}
-          <View style={[styles.heroStreakBadge, { backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#fef3c7', borderColor: '#f59e0b' }]}>
-            <Flame size={16} color="#f59e0b" fill="#f59e0b" />
-            <Text style={[styles.heroStreakText, { color: isDark ? '#fbbf24' : '#b45309' }]}>
-              {stats.streak}d Streak
-            </Text>
-          </View>
+      {/* Stats Row Card */}
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        borderWidth: 0.5,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 4,
+      }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+            {stats.totalQuestionsAnswered}
+          </Text>
+          <Text style={{ fontSize: 8, fontWeight: '600', color: colors.textMuted, marginTop: 4, letterSpacing: 0.5 }}>
+            PRACTICED
+          </Text>
         </View>
-
-        <View style={[styles.heroDivider, { backgroundColor: colors.border }]} />
-
-        {/* 3 Stats Grid */}
-        <View style={styles.heroStatsGrid}>
-          <View style={styles.heroStatItem}>
-            <Text style={[styles.heroStatVal, dynamicStyles.text]}>{stats.totalQuestionsAnswered}</Text>
-            <Text style={[styles.heroStatLabel, dynamicStyles.textMuted]}>PRACTICED</Text>
-          </View>
-
-          <View style={[styles.heroStatItem, styles.heroStatDivider, { borderLeftColor: colors.border, borderRightColor: colors.border }]}>
-            <Text style={[styles.heroStatVal, { color: colors.primary }]}>{accuracyText}</Text>
-            <Text style={[styles.heroStatLabel, dynamicStyles.textMuted]}>ACCURACY</Text>
-          </View>
-
-          <View style={styles.heroStatItem}>
-            <Text style={[styles.heroStatVal, dynamicStyles.text]}>{mcqs.length}</Text>
-            <Text style={[styles.heroStatLabel, dynamicStyles.textMuted]}>MCQS READY</Text>
-          </View>
+        <View style={{ width: 0.5, height: 40, backgroundColor: colors.border }} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>
+            {accuracyText}
+          </Text>
+          <Text style={{ fontSize: 8, fontWeight: '600', color: colors.textMuted, marginTop: 4, letterSpacing: 0.5 }}>
+            ACCURACY
+          </Text>
+        </View>
+        <View style={{ width: 0.5, height: 40, backgroundColor: colors.border }} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+            {mcqs.length}
+          </Text>
+          <Text style={{ fontSize: 8, fontWeight: '600', color: colors.textMuted, marginTop: 4, letterSpacing: 0.5 }}>
+            MCQS READY
+          </Text>
         </View>
       </View>
 
-      {/* Today's Focus Strip */}
+      {/* Today's Focus Card */}
       {todayFocusTopic && (
         <TouchableOpacity
           onPress={() => {
@@ -505,64 +556,106 @@ export default function DashboardScreen() {
               params: { focusTopicId: todayFocusTopic.topic.id, subject: todayFocusTopic.subject },
             });
           }}
-          style={[styles.focusStrip, dynamicStyles.card]}
+          style={{
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            borderWidth: 0.5,
+            borderRadius: 16,
+            padding: 16,
+            position: 'relative',
+            overflow: 'hidden',
+            marginBottom: 4,
+          }}
         >
-          <View style={styles.focusStripLeft}>
-            <View style={styles.focusLabelRow}>
-              <Sparkles size={12} color={colors.primary} />
-              <Text style={[styles.focusLabel, { color: colors.primary }]}>TODAY'S FOCUS</Text>
-              {examFocus && examFocus !== 'General' && (
-                <View style={{
-                  backgroundColor: colors.primary + '18',
-                  borderRadius: 6,
-                  paddingHorizontal: 6,
-                  paddingVertical: 3,
-                  marginLeft: 6,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 3,
-                }}>
-                  <Target size={10} color={colors.primary} />
-                  <Text style={{
-                    color: colors.primary,
-                    fontSize: 8,
-                    fontWeight: '800',
-                  }}>
-                    {examFocus.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={[styles.focusImportanceBadge, {
-                backgroundColor: todayFocusTopic.topic.importance === 'critical' ? '#fee2e2' : todayFocusTopic.topic.importance === 'high' ? '#ffedd5' : '#f3f4f6'
-              }]}>
-                <Text style={{
-                  color: todayFocusTopic.topic.importance === 'critical' ? '#ef4444' : todayFocusTopic.topic.importance === 'high' ? '#f97316' : '#4b5563',
-                  fontSize: 8,
-                  fontWeight: '700'
-                }}>
-                  {todayFocusTopic.topic.importance.toUpperCase()}
-                </Text>
-              </View>
+          {/* Accent vertical line on the left edge */}
+          <View style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            backgroundColor: '#F59E0B',
+          }} />
+
+          {/* Top header row inside card */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingLeft: 8,
+            marginBottom: 10,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Sparkles size={14} color={colors.textMuted} />
+              <Text style={{ fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 1 }}>
+                TODAY'S FOCUS
+              </Text>
             </View>
-            <Text style={[styles.focusTitle, dynamicStyles.text]} numberOfLines={1}>
+            <View style={{
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              borderColor: 'rgba(245, 158, 11, 0.2)',
+              borderWidth: 1,
+              borderRadius: 12,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}>
+              <Text style={{ fontSize: 8, fontWeight: '700', color: '#F59E0B' }}>
+                {todayFocusTopic.topic.importance?.toUpperCase() || 'HIGH'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Content details */}
+          <View style={{ paddingLeft: 8, marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }} numberOfLines={1}>
               {todayFocusTopic.topic.title}
             </Text>
-            <Text style={[styles.focusMeta, dynamicStyles.textMuted]}>
-              {todayFocusTopic.subject} · {todayFocusTopic.topic.estimatedReadTime} min read
+            <Text style={{ fontSize: 11, color: colors.textMuted }}>
+              {todayFocusTopic.subject} · {todayFocusTopic.topic.estimatedReadTime || 7} min read
             </Text>
           </View>
-          <View style={[styles.focusBtn, { backgroundColor: colors.primary }]}>
-            <Text style={styles.focusBtnText}>Read</Text>
+
+          {/* Read button container */}
+          <View style={{ paddingLeft: 8, flexDirection: 'row', justifyContent: 'flex-end' }}>
+            <View style={{
+              backgroundColor: 'rgba(124, 111, 240, 0.15)',
+              borderRadius: 20,
+              paddingHorizontal: 16,
+              paddingVertical: 6,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
+                Read
+              </Text>
+              <ChevronRight size={12} color={colors.primary} />
+            </View>
           </View>
         </TouchableOpacity>
       )}
 
       {/* Practice by Subject Header */}
-      <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>Practice by Subject</Text>
+      <Text style={{
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.textMuted,
+        letterSpacing: 1.5,
+        marginBottom: 8,
+        marginTop: 12,
+        paddingLeft: 4,
+      }}>
+        PRACTICE BY SUBJECT
+      </Text>
 
-      {/* Dynamic Subject Cards Grid with Progress Bars */}
-      <View style={styles.subjectGrid2x2}>
-        {SUBJECT_NOTEBOOKS.map((notebook) => {
+      {/* 2-Column Grid for the first 4 subjects */}
+      <View style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 10,
+      }}>
+        {SUBJECT_NOTEBOOKS.slice(0, 4).map((notebook) => {
           const sub = notebook.subject;
           const config = SUBJECT_CONFIGS[sub] || { label: sub.substring(0, 3).toUpperCase(), color: colors.primary };
           const progress = subjectProgress[sub] || { completed: 0, total: 0, percent: 0 };
@@ -570,23 +663,115 @@ export default function DashboardScreen() {
             <TouchableOpacity
               key={sub}
               onPress={() => handleCategoryStart(sub)}
-              style={[styles.subjectCard2, dynamicStyles.card, { borderLeftColor: config.color, borderLeftWidth: 4 }]}
+              style={{
+                width: '48%',
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderWidth: 0.5,
+                borderRadius: 12,
+                padding: 12,
+                minHeight: 100,
+                justifyContent: 'space-between',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
             >
-              <View>
-                <View style={styles.subjectHeaderRow}>
-                  <Text style={[styles.subjectLabel2, { color: config.color }]}>{config.label}</Text>
-                  <Text style={[styles.subjectProgressText, dynamicStyles.textMuted]}>
-                    {progress.completed}/{progress.total}
+              <View style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 3,
+                backgroundColor: config.color,
+              }} />
+
+              <View style={{ paddingLeft: 6 }}>
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 4,
+                }}>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5 }}>
+                    {config.label}
                   </Text>
                 </View>
-                <Text style={[styles.subjectTitle2, dynamicStyles.text]}>{sub}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, lineHeight: 18 }} numberOfLines={2}>
+                  {sub}
+                </Text>
               </View>
-              
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, {
-                  backgroundColor: config.color,
-                  width: `${progress.percent}%`
-                }]} />
+
+              <View style={{ paddingLeft: 6, marginTop: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 8, color: colors.textMuted }}>
+                    {progress.completed}/{progress.total} done
+                  </Text>
+                  <Text style={{ fontSize: 8, fontWeight: '700', color: config.color }}>
+                    {progress.percent}%
+                  </Text>
+                </View>
+                <View style={{ height: 3, backgroundColor: 'rgba(128,128,128,0.15)', borderRadius: 1.5, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', backgroundColor: config.color, width: `${progress.percent}%` }} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Full-width Cards for remaining subjects (e.g. CS, Islamiat) */}
+      <View style={{ gap: 10, marginTop: 10 }}>
+        {SUBJECT_NOTEBOOKS.slice(4).map((notebook) => {
+          const sub = notebook.subject;
+          const config = SUBJECT_CONFIGS[sub] || { label: sub.substring(0, 3).toUpperCase(), color: colors.primary };
+          const progress = subjectProgress[sub] || { completed: 0, total: 0, percent: 0 };
+          return (
+            <TouchableOpacity
+              key={sub}
+              onPress={() => handleCategoryStart(sub)}
+              style={{
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderWidth: 0.5,
+                borderRadius: 12,
+                padding: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <View style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 3,
+                backgroundColor: config.color,
+              }} />
+
+              <View style={{ paddingLeft: 8, flex: 1, marginRight: 16 }}>
+                <Text style={{ fontSize: 8, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5, marginBottom: 2 }}>
+                  {config.label}
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }} numberOfLines={1}>
+                  {sub}
+                </Text>
+              </View>
+
+              <View style={{ width: 120 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 8, color: colors.textMuted }}>
+                    {progress.completed}/{progress.total} done
+                  </Text>
+                  <Text style={{ fontSize: 8, fontWeight: '700', color: config.color }}>
+                    {progress.percent}%
+                  </Text>
+                </View>
+                <View style={{ height: 3, backgroundColor: 'rgba(128,128,128,0.15)', borderRadius: 1.5, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', backgroundColor: config.color, width: `${progress.percent}%` }} />
+                </View>
               </View>
             </TouchableOpacity>
           );
@@ -596,22 +781,46 @@ export default function DashboardScreen() {
       {/* Prominent Full-Width Purple Quiz CTA Banner */}
       <TouchableOpacity
         onPress={handleQuickStartQuiz}
-        style={[styles.quizCtaBanner, { backgroundColor: colors.primary }]}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 16,
+          borderRadius: 16,
+          backgroundColor: colors.primary,
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 4,
+          marginVertical: 4,
+        }}
       >
-        <View style={styles.quizCtaLeft}>
-          <View style={styles.quizCtaIconContainer}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+          <View style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
             <Play size={18} color="#ffffff" fill="#ffffff" />
           </View>
           <View>
-            <Text style={styles.quizCtaTitle}>Start Quick Quiz Challenge</Text>
-            <Text style={styles.quizCtaSubtitle}>10 mixed MCQs · 15s timer per question</Text>
+            <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '700' }}>
+              Start Quick Quiz Challenge
+            </Text>
+            <Text style={{ color: '#e0e7ff', fontSize: 11, marginTop: 2 }}>
+              10 mixed MCQs · 15s timer per question
+            </Text>
           </View>
         </View>
         <ChevronRight size={20} color="#ffffff" />
       </TouchableOpacity>
 
       {/* ── AI STUDY COACH WIDGET ── */}
-      <Card isDark={isDark} style={{ padding: 18, marginBottom: 4 }}>
+      <Card isDark={isDark} style={{ padding: 18, marginBottom: 4, backgroundColor: colors.card, borderColor: colors.border, borderWidth: 0.5, borderRadius: 16 }}>
         <SectionHeader
           isDark={isDark}
           icon={<Sparkles size={13} color={colors.primary} />}
@@ -625,19 +834,19 @@ export default function DashboardScreen() {
             <TouchableOpacity
               onPress={handleAnalyzeProgress}
               disabled={aiCoachLoading}
-              style={[
-                styles.quizCtaBanner,
-                {
-                  backgroundColor: colors.primary,
-                  padding: 12,
-                  marginTop: 4,
-                  minHeight: 44,
-                  opacity: aiCoachLoading ? 0.75 : 1,
-                  marginBottom: 0
-                }
-              ]}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: colors.primary,
+                padding: 12,
+                borderRadius: 12,
+                marginTop: 4,
+                minHeight: 44,
+                opacity: aiCoachLoading ? 0.75 : 1,
+              }}
             >
-              <View style={[styles.quizCtaLeft, { gap: 8, flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+              <View style={{ gap: 8, flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                 {aiCoachLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
@@ -657,20 +866,20 @@ export default function DashboardScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => router.push('/settings')}
-              style={[
-                styles.quizCtaBanner,
-                {
-                  backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6',
-                  padding: 12,
-                  marginTop: 4,
-                  minHeight: 44,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  marginBottom: 0
-                }
-              ]}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6',
+                padding: 12,
+                borderRadius: 12,
+                marginTop: 4,
+                minHeight: 44,
+                borderWidth: 0.5,
+                borderColor: colors.border,
+              }}
             >
-              <View style={[styles.quizCtaLeft, { gap: 8, flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+              <View style={{ gap: 8, flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                 <Sparkles size={16} color={colors.primary} />
                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>
                   Activate AI Coach (Add API Key)
@@ -692,8 +901,8 @@ export default function DashboardScreen() {
       </View>
 
       {/* Analytics Coming Soon Placeholder */}
-      <View style={[styles.card, dynamicStyles.card, { padding: 16, marginBottom: 12 }]}>
-        <View style={{ alignItems: 'center', padding: 20, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 12 }}>
+      <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 0.5, borderRadius: 16, padding: 16, marginBottom: 4 }}>
+        <View style={{ alignItems: 'center', padding: 20, backgroundColor: isDark ? '#0E1117' : '#f3f4f6', borderRadius: 12 }}>
           <BarChart3 size={24} color={colors.primary} />
           <Text style={{ marginTop: 8, fontSize: 14, fontWeight: '700', color: colors.text }}>Coming Soon</Text>
           <Text style={{ marginTop: 4, fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>Deep analytics, performance trends, and weak area analysis are currently being calibrated.</Text>
@@ -701,17 +910,17 @@ export default function DashboardScreen() {
       </View>
 
       {/* Competitive Leaderboard */}
-      <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
+      <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 0.5, borderRadius: 16, padding: 16, marginBottom: 4 }}>
         <View style={styles.leaderboardHeader}>
           <View>
-            <Text style={[styles.cardSubText, { color: '#f59e0b' }]}>Competitive Aspirants Lobby</Text>
-            <Text style={[styles.cardTitle, dynamicStyles.text, { marginBottom: 0 }]}>Live Leaderboard</Text>
+            <Text style={{ fontSize: 11, fontWeight: '500', color: '#f59e0b', textTransform: 'capitalize' }}>Competitive Aspirants Lobby</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4, marginBottom: 14 }}>Live Leaderboard</Text>
           </View>
           <Award size={18} color="#f59e0b" />
         </View>
 
         {/* Coming Soon Overlay */}
-        <View style={{ marginTop: 12, alignItems: 'center', padding: 20, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 12 }}>
+        <View style={{ alignItems: 'center', padding: 20, backgroundColor: isDark ? '#0E1117' : '#f3f4f6', borderRadius: 12 }}>
           <Sparkles size={24} color={colors.primary} />
           <Text style={{ marginTop: 8, fontSize: 14, fontWeight: '700', color: colors.text }}>Coming Soon</Text>
           <Text style={{ marginTop: 4, fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>Compete with thousands of aspirants nationwide. Leaderboards are currently being calibrated.</Text>
@@ -719,12 +928,12 @@ export default function DashboardScreen() {
       </View>
 
       {/* Achievements section */}
-      <View style={[styles.card, dynamicStyles.card, { padding: 16 }]}>
-        <Text style={[styles.cardSubText, { color: colors.primary }]}>Personal Progression Hub</Text>
-        <Text style={[styles.cardTitle, dynamicStyles.text]}>Aspirant Competency Badges</Text>
+      <View style={{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 0.5, borderRadius: 16, padding: 16, marginBottom: 4 }}>
+        <Text style={{ fontSize: 11, fontWeight: '500', color: colors.primary, textTransform: 'capitalize' }}>Personal Progression Hub</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4, marginBottom: 14 }}>Aspirant Competency Badges</Text>
 
         {/* Coming Soon Overlay */}
-        <View style={{ marginTop: 12, alignItems: 'center', padding: 20, backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6', borderRadius: 12 }}>
+        <View style={{ alignItems: 'center', padding: 20, backgroundColor: isDark ? '#0E1117' : '#f3f4f6', borderRadius: 12 }}>
           <Trophy size={24} color={colors.accent} />
           <Text style={{ marginTop: 8, fontSize: 14, fontWeight: '700', color: colors.text }}>Coming Soon</Text>
           <Text style={{ marginTop: 4, fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>Aspirant competency badges and achievements will be unlocked soon.</Text>
@@ -734,15 +943,32 @@ export default function DashboardScreen() {
       {/* Vocabulary Wallpaper Link Strip */}
       <TouchableOpacity
         onPress={() => router.push('/wallpaper')}
-        style={[styles.wallpaperStripCard, dynamicStyles.card]}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 12,
+          borderRadius: 14,
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          borderWidth: 0.5,
+          marginBottom: 4,
+        }}
       >
-        <View style={styles.wallpaperStripLeft}>
-          <View style={[styles.wallpaperStripIconBg, { backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#e0e7ff' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 8 }}>
+          <View style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: isDark ? 'rgba(124, 111, 240, 0.15)' : '#e0e7ff',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
             <ImageIcon size={18} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.wallpaperStripTitle, dynamicStyles.text]}>Daily Vocabulary Wallpaper</Text>
-            <Text style={[styles.wallpaperStripSub, dynamicStyles.textMuted]} numberOfLines={1}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>Daily Vocabulary Wallpaper</Text>
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }} numberOfLines={1}>
               Customize and set today's lockscreen: {todayWallpaperWords.map(w => w.word.toUpperCase()).join(' & ')}
             </Text>
           </View>

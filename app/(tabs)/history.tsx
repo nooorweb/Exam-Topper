@@ -29,6 +29,7 @@ import {
 import { useApp } from '../../src/context/AppContext';
 import { QuizService, type QuizAttemptRow } from '../../src/services/quiz.service';
 import SplashLoader from '../../src/components/common/SplashLoader';
+import { router } from 'expo-router';
 
 // ─── Unified row type (cloud or local) ───────────────────────────────────────
 
@@ -48,13 +49,13 @@ const PAGE_SIZE = 20;
 // ─── Category colours ─────────────────────────────────────────────────────────
 
 const CAT_COLORS: Record<string, string> = {
-  English: '#3b82f6',
-  'General Knowledge': '#f97316',
-  'Pakistan Studies': '#ef4444',
-  Mathematics: '#10b981',
-  'Computer Science': '#a855f7',
-  Islamiat: '#f59e0b',
-  'Mixed Practice': '#6366f1',
+  English: '#60A5FA',
+  'General Knowledge': '#F59E0B',
+  'Pakistan Studies': '#F87171',
+  Mathematics: '#34D399',
+  'Computer Science': '#A78BFA',
+  Islamiat: '#06b6d4',
+  'Mixed Practice': '#7C6FF0',
 };
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -72,11 +73,11 @@ const fmtDate = (iso: string) => {
 };
 
 const getGrade = (pct: number) => {
-  if (pct >= 90) return { label: 'A+', color: '#10b981' };
-  if (pct >= 80) return { label: 'A', color: '#10b981' };
-  if (pct >= 70) return { label: 'B', color: '#6366f1' };
-  if (pct >= 60) return { label: 'C', color: '#f59e0b' };
-  if (pct >= 50) return { label: 'D', color: '#f97316' };
+  if (pct >= 90) return { label: 'A+', color: '#10B981' };
+  if (pct >= 80) return { label: 'A', color: '#10B981' };
+  if (pct >= 70) return { label: 'B', color: '#7C6FF0' };
+  if (pct >= 60) return { label: 'C', color: '#F59E0B' };
+  if (pct >= 50) return { label: 'D', color: '#F59E0B' };
   return { label: 'F', color: '#ef4444' };
 };
 
@@ -95,13 +96,13 @@ export default function HistoryScreen() {
   const [source, setSource] = useState<'cloud' | 'local'>('local');
 
   const colors = {
-    bg: isDark ? '#09090b' : '#f9fafb',
-    card: isDark ? '#121214' : '#ffffff',
-    text: isDark ? '#f4f4f5' : '#1f2937',
-    textMuted: isDark ? '#6b7280' : '#9ca3af',
-    border: isDark ? '#1f1f23' : '#e5e7eb',
-    primary: '#6366f1',
-    success: '#10b981',
+    bg: isDark ? '#0E1117' : '#f9fafb',
+    card: isDark ? '#161B27' : '#ffffff',
+    text: isDark ? '#e1e2eb' : '#1f2937',
+    textMuted: isDark ? '#c8c4d6' : '#9ca3af',
+    border: isDark ? '#2A2D3A' : '#e5e7eb',
+    primary: '#7C6FF0',
+    success: '#10B981',
     danger: '#ef4444',
   };
 
@@ -113,7 +114,7 @@ export default function HistoryScreen() {
 
     const mapped: HistoryRow[] = data.map((r: QuizAttemptRow) => ({
       id: r.id,
-      category: r.category,
+      category: r.subject,          // new schema: 'subject' column
       scorePercent: r.score_percent,
       correctCount: r.correct_count,
       totalQuestions: r.total_questions,
@@ -188,59 +189,91 @@ export default function HistoryScreen() {
     const isPass = item.scorePercent >= 50;
 
     return (
-      <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {/* Left: index + grade circle */}
-        <View style={styles.rowLeft}>
-          <Text style={[styles.rowIndex, { color: colors.textMuted }]}>#{index + 1}</Text>
-          <View style={[styles.gradeBadge, { backgroundColor: `${grade.color}18`, borderColor: `${grade.color}40` }]}>
-            <Text style={[styles.gradeText, { color: grade.color }]}>{grade.label}</Text>
-          </View>
+      <View style={{
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        borderWidth: 0.5,
+        borderRadius: 14,
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Left vertical border stripe */}
+        <View style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 3,
+          backgroundColor: grade.color,
+        }} />
+
+        {/* Circular Grade Badge */}
+        <View style={{
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: `${grade.color}15`,
+          borderColor: `${grade.color}30`,
+          borderWidth: 0.5,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginLeft: 4,
+        }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: grade.color }}>
+            {grade.label}
+          </Text>
         </View>
 
-        {/* Center: details */}
-        <View style={styles.rowCenter}>
-          <View style={styles.rowCatRow}>
-            <View style={[styles.catDot, { backgroundColor: catColor }]} />
-            <Text style={[styles.rowCat, { color: catColor }]} numberOfLines={1}>
-              {item.category}
+        {/* Details (Middle) */}
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }} numberOfLines={1}>
+            {item.category}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 11, color: colors.textMuted }}>
+              {item.correctCount}/{item.totalQuestions}
+            </Text>
+            <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.textMuted }} />
+            <Text style={{ fontSize: 11, color: colors.textMuted }}>
+              {fmtTime(item.timeSpentSecs)}
             </Text>
             {item.source === 'local' && (
-              <View style={[styles.localBadge, { backgroundColor: isDark ? '#27272a' : '#f3f4f6' }]}>
-                <WifiOff size={8} color={colors.textMuted} />
-                <Text style={[styles.localBadgeText, { color: colors.textMuted }]}>Local</Text>
-              </View>
+              <>
+                <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.textMuted }} />
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 2,
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  paddingHorizontal: 4,
+                  paddingVertical: 1,
+                  borderRadius: 4,
+                }}>
+                  <WifiOff size={8} color={colors.textMuted} />
+                  <Text style={{ fontSize: 8, color: colors.textMuted, fontWeight: '600' }}>Local</Text>
+                </View>
+              </>
             )}
           </View>
-
-          <View style={styles.rowStatsRow}>
-            <View style={styles.rowStat}>
-              <CheckCircle2 size={10} color={colors.success} />
-              <Text style={[styles.rowStatText, { color: colors.text }]}>
-                {item.correctCount}/{item.totalQuestions}
-              </Text>
-            </View>
-            <View style={styles.rowStat}>
-              <Clock size={10} color={colors.textMuted} />
-              <Text style={[styles.rowStatText, { color: colors.textMuted }]}>
-                {fmtTime(item.timeSpentSecs)}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={[styles.rowDate, { color: colors.textMuted }]}>
+          <Text style={{ fontSize: 9, color: colors.textMuted, marginTop: 2 }}>
             {fmtDate(item.completedAt)}
           </Text>
         </View>
 
-        {/* Right: score */}
-        <View style={styles.rowRight}>
-          <Text style={[styles.rowScore, { color: isPass ? colors.success : colors.danger }]}>
+        {/* Score & Icon (Right) */}
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: isPass ? colors.success : colors.danger }}>
             {Math.round(item.scorePercent)}%
           </Text>
-          {isPass
-            ? <CheckCircle2 size={14} color={colors.success} />
-            : <XCircle size={14} color={colors.danger} />
-          }
+          {isPass ? (
+            <CheckCircle2 size={16} color={colors.success} />
+          ) : (
+            <XCircle size={16} color={colors.danger} />
+          )}
         </View>
       </View>
     );
@@ -251,37 +284,55 @@ export default function HistoryScreen() {
     <View style={styles.listHeader}>
       {/* Summary cards */}
       <View style={styles.summaryRow}>
-        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 0.5 }]}>
           <History size={16} color={colors.primary} />
-          <Text style={[styles.summaryVal, { color: colors.text }]}>{rows.length}</Text>
-          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>SESSIONS</Text>
+          <Text style={[styles.summaryVal, { color: colors.text, marginTop: 4 }]}>{rows.length}</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted, marginTop: 2 }]}>SESSIONS</Text>
         </View>
-        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Award size={16} color='#f59e0b' />
-          <Text style={[styles.summaryVal, { color: colors.text }]}>{avgScore}%</Text>
-          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>AVG SCORE</Text>
+        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 0.5 }]}>
+          <Award size={16} color='#F59E0B' />
+          <Text style={[styles.summaryVal, { color: colors.text, marginTop: 4 }]}>{avgScore}%</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted, marginTop: 2 }]}>AVG SCORE</Text>
         </View>
-        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Trophy size={16} color={colors.success} />
-          <Text style={[styles.summaryVal, { color: colors.text }]}>{bestScore}%</Text>
-          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>BEST</Text>
+        <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 0.5 }]}>
+          <Trophy size={16} color='#10B981' />
+          <Text style={[styles.summaryVal, { color: colors.text, marginTop: 4 }]}>{bestScore}%</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted, marginTop: 2 }]}>BEST</Text>
         </View>
       </View>
 
-      {/* Source notice */}
+      {/* Source notice banner */}
       <View style={[styles.sourceBanner, {
-        backgroundColor: source === 'cloud' ? (isDark ? 'rgba(99,102,241,0.08)' : '#eff6ff') : (isDark ? '#18181b' : '#f9fafb'),
-        borderColor: source === 'cloud' ? `${colors.primary}30` : colors.border,
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        borderWidth: 0.5,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
       }]}>
-        {source === 'cloud'
-          ? <CheckCircle2 size={11} color={colors.primary} />
-          : <WifiOff size={11} color={colors.textMuted} />
-        }
-        <Text style={[styles.sourceBannerText, { color: source === 'cloud' ? colors.primary : colors.textMuted }]}>
-          {source === 'cloud'
-            ? `Synced from cloud · ${rows.length} sessions`
-            : 'Showing local sessions — sign in to sync to cloud'}
-        </Text>
+        {source === 'cloud' ? (
+          <>
+            <CheckCircle2 size={14} color={colors.primary} />
+            <Text style={{ fontSize: 11, color: colors.text, flex: 1 }}>
+              Synced from cloud · {rows.length} sessions
+            </Text>
+          </>
+        ) : (
+          <>
+            <WifiOff size={14} color={colors.textMuted} />
+            <Text style={{ fontSize: 11, color: colors.textMuted, flex: 1 }}>
+              Showing local sessions — sign in to sync
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/settings')}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
+                SIGN IN
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>RECENT ATTEMPTS</Text>
@@ -311,14 +362,55 @@ export default function HistoryScreen() {
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   const EmptyState = () => (
-    <View style={styles.emptyState}>
-      <View style={[styles.emptyIconBg, { backgroundColor: isDark ? '#1c1c1f' : '#f3f4f6' }]}>
-        <History size={28} color={colors.textMuted} />
+    <View style={[styles.emptyState, { backgroundColor: colors.bg }]}>
+      {/* Source notice */}
+      <View style={[{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        borderWidth: 0.5,
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        marginBottom: 40,
+        alignSelf: 'stretch',
+        marginHorizontal: 16,
+      }]}>
+        {user ? (
+          <>
+            <CheckCircle2 size={14} color={colors.primary} />
+            <Text style={{ fontSize: 11, color: colors.text, flex: 1 }}>Signed in · history synced from cloud</Text>
+          </>
+        ) : (
+          <>
+            <WifiOff size={14} color={colors.textMuted} />
+            <Text style={{ fontSize: 11, color: colors.textMuted, flex: 1 }}>Sign in to sync quiz history across devices</Text>
+            <TouchableOpacity onPress={() => router.push('/settings')}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>SIGN IN</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
+
+      {/* Icon */}
+      <View style={[styles.emptyIconBg, { backgroundColor: isDark ? '#1c2032' : '#f3f4f6', marginBottom: 6 }]}>
+        <History size={32} color={colors.primary} />
+      </View>
+
       <Text style={[styles.emptyTitle, { color: colors.text }]}>No quiz history yet</Text>
       <Text style={[styles.emptySub, { color: colors.textMuted }]}>
-        Complete your first quiz to see your results here.
+        {'Your completed quizzes will appear here.\nStart a quiz from the home screen to begin!'}
       </Text>
+
+      <TouchableOpacity
+        onPress={() => router.push('/')}
+        style={[styles.startQuizBtn, { backgroundColor: colors.primary }]}
+      >
+        <Trophy size={16} color='#fff' />
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Start a Quiz</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -437,14 +529,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   loadMoreText: { fontSize: 12, fontWeight: '700' },
-  emptyState: { alignItems: 'center', gap: 10, paddingTop: 80 },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingBottom: 60,
+  },
   emptyIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 72,
+    height: 72,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyTitle: { fontSize: 16, fontWeight: '800' },
-  emptySub: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', marginTop: 4 },
+  emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 4 },
+  startQuizBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 8,
+  },
 });

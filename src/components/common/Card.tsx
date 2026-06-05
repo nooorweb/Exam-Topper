@@ -35,8 +35,8 @@ export default function Card({
   accessibilityHint,
   testID,
 }: CardProps) {
-  const bg = isDark ? '#121214' : '#ffffff';
-  const borderColor = isDark ? '#1f1f23' : '#f3f4f6';
+  const bg = isDark ? '#161B27' : '#ffffff';
+  const borderColor = isDark ? '#2A2D3A' : '#f3f4f6';
 
   const containerStyle: ViewStyle[] = [
     styles.card,
@@ -73,7 +73,7 @@ export default function Card({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 0.5,
     padding: 16,
   },
 });

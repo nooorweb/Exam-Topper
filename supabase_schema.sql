@@ -1,6 +1,7 @@
 -- ============================================================
--- Smart Prep MCQs — Production Supabase Schema
--- Run this entire file in the Supabase SQL Editor (Dashboard > SQL Editor > New Query)
+-- Smart Prep MCQs — REVISED Schema
+-- Subject-specific MCQ tables (one per subject) + shared vocab/notes
+-- Run this ENTIRE file in the Supabase SQL Editor
 -- ============================================================
 
 -- ─────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   selected_subjects        TEXT[]  DEFAULT '{}',
   exam_target              TEXT,
   daily_goal_minutes       INT DEFAULT 20,
-  -- Denormalized stats (fast dashboard reads — never re-aggregate attempt_answers)
+  -- Denormalized stats (fast dashboard reads)
   total_questions_answered INT DEFAULT 0,
   correct_answers_count    INT DEFAULT 0,
   current_streak           INT DEFAULT 0,
@@ -46,30 +47,138 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ─────────────────────────────────────────────────────────────
--- 2. mcqs (content table — shared, admin-seeded)
+-- 2. SUBJECTS MCQ TABLES (one per subject)
+-- Shared columns across all subject MCQ tables:
+--   id, question, options (JSONB), correct_answer, explanation,
+--   subcategory, exam_type, difficulty, is_repeated, repeat_count,
+--   importance, is_public, created_at
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.mcqs (
+
+-- 2a. english_mcqs
+CREATE TABLE IF NOT EXISTS public.english_mcqs (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   question       TEXT NOT NULL,
-  options        JSONB NOT NULL,                -- ["A", "B", "C", "D"]
-  correct_answer SMALLINT NOT NULL,             -- 0-3
+  options        JSONB NOT NULL,              -- ["A","B","C","D"]
+  correct_answer SMALLINT NOT NULL,           -- 0-3
   explanation    TEXT,
-  category       TEXT NOT NULL,
-  subcategory    TEXT,
-  exam_type      TEXT,
-  difficulty     TEXT DEFAULT 'medium',         -- 'easy' | 'medium' | 'hard'
+  subcategory    TEXT,                        -- e.g. "Grammar","Vocabulary","Idioms"
+  exam_type      TEXT,                        -- e.g. "KPPSC 2022"
+  difficulty     TEXT DEFAULT 'medium',
   is_repeated    BOOLEAN DEFAULT FALSE,
   repeat_count   SMALLINT DEFAULT 0,
-  importance     TEXT DEFAULT 'medium',         -- 'high' | 'medium' | 'low'
-  created_by     UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  importance     TEXT DEFAULT 'medium',
   is_public      BOOLEAN DEFAULT TRUE,
   created_at     TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_english_mcqs_difficulty  ON public.english_mcqs(difficulty);
+CREATE INDEX IF NOT EXISTS idx_english_mcqs_importance  ON public.english_mcqs(importance);
+CREATE INDEX IF NOT EXISTS idx_english_mcqs_exam_type   ON public.english_mcqs(exam_type);
+CREATE INDEX IF NOT EXISTS idx_english_mcqs_is_public   ON public.english_mcqs(is_public);
 
-CREATE INDEX IF NOT EXISTS idx_mcqs_category   ON public.mcqs(category);
-CREATE INDEX IF NOT EXISTS idx_mcqs_exam_type  ON public.mcqs(exam_type);
-CREATE INDEX IF NOT EXISTS idx_mcqs_difficulty ON public.mcqs(difficulty);
-CREATE INDEX IF NOT EXISTS idx_mcqs_is_public  ON public.mcqs(is_public);
+-- 2b. pakistan_studies_mcqs
+CREATE TABLE IF NOT EXISTS public.pakistan_studies_mcqs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  question       TEXT NOT NULL,
+  options        JSONB NOT NULL,
+  correct_answer SMALLINT NOT NULL,
+  explanation    TEXT,
+  subcategory    TEXT,
+  exam_type      TEXT,
+  difficulty     TEXT DEFAULT 'medium',
+  is_repeated    BOOLEAN DEFAULT FALSE,
+  repeat_count   SMALLINT DEFAULT 0,
+  importance     TEXT DEFAULT 'medium',
+  is_public      BOOLEAN DEFAULT TRUE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ps_mcqs_difficulty ON public.pakistan_studies_mcqs(difficulty);
+CREATE INDEX IF NOT EXISTS idx_ps_mcqs_importance ON public.pakistan_studies_mcqs(importance);
+CREATE INDEX IF NOT EXISTS idx_ps_mcqs_exam_type  ON public.pakistan_studies_mcqs(exam_type);
+CREATE INDEX IF NOT EXISTS idx_ps_mcqs_is_public  ON public.pakistan_studies_mcqs(is_public);
+
+-- 2c. general_knowledge_mcqs
+CREATE TABLE IF NOT EXISTS public.general_knowledge_mcqs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  question       TEXT NOT NULL,
+  options        JSONB NOT NULL,
+  correct_answer SMALLINT NOT NULL,
+  explanation    TEXT,
+  subcategory    TEXT,
+  exam_type      TEXT,
+  difficulty     TEXT DEFAULT 'medium',
+  is_repeated    BOOLEAN DEFAULT FALSE,
+  repeat_count   SMALLINT DEFAULT 0,
+  importance     TEXT DEFAULT 'medium',
+  is_public      BOOLEAN DEFAULT TRUE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gk_mcqs_difficulty ON public.general_knowledge_mcqs(difficulty);
+CREATE INDEX IF NOT EXISTS idx_gk_mcqs_importance ON public.general_knowledge_mcqs(importance);
+CREATE INDEX IF NOT EXISTS idx_gk_mcqs_exam_type  ON public.general_knowledge_mcqs(exam_type);
+CREATE INDEX IF NOT EXISTS idx_gk_mcqs_is_public  ON public.general_knowledge_mcqs(is_public);
+
+-- 2d. computer_science_mcqs
+CREATE TABLE IF NOT EXISTS public.computer_science_mcqs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  question       TEXT NOT NULL,
+  options        JSONB NOT NULL,
+  correct_answer SMALLINT NOT NULL,
+  explanation    TEXT,
+  subcategory    TEXT,
+  exam_type      TEXT,
+  difficulty     TEXT DEFAULT 'medium',
+  is_repeated    BOOLEAN DEFAULT FALSE,
+  repeat_count   SMALLINT DEFAULT 0,
+  importance     TEXT DEFAULT 'medium',
+  is_public      BOOLEAN DEFAULT TRUE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cs_mcqs_difficulty ON public.computer_science_mcqs(difficulty);
+CREATE INDEX IF NOT EXISTS idx_cs_mcqs_importance ON public.computer_science_mcqs(importance);
+CREATE INDEX IF NOT EXISTS idx_cs_mcqs_exam_type  ON public.computer_science_mcqs(exam_type);
+CREATE INDEX IF NOT EXISTS idx_cs_mcqs_is_public  ON public.computer_science_mcqs(is_public);
+
+-- 2e. mathematics_mcqs
+CREATE TABLE IF NOT EXISTS public.mathematics_mcqs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  question       TEXT NOT NULL,
+  options        JSONB NOT NULL,
+  correct_answer SMALLINT NOT NULL,
+  explanation    TEXT,
+  subcategory    TEXT,
+  exam_type      TEXT,
+  difficulty     TEXT DEFAULT 'medium',
+  is_repeated    BOOLEAN DEFAULT FALSE,
+  repeat_count   SMALLINT DEFAULT 0,
+  importance     TEXT DEFAULT 'medium',
+  is_public      BOOLEAN DEFAULT TRUE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_math_mcqs_difficulty ON public.mathematics_mcqs(difficulty);
+CREATE INDEX IF NOT EXISTS idx_math_mcqs_importance ON public.mathematics_mcqs(importance);
+CREATE INDEX IF NOT EXISTS idx_math_mcqs_exam_type  ON public.mathematics_mcqs(exam_type);
+CREATE INDEX IF NOT EXISTS idx_math_mcqs_is_public  ON public.mathematics_mcqs(is_public);
+
+-- 2f. islamiat_mcqs
+CREATE TABLE IF NOT EXISTS public.islamiat_mcqs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  question       TEXT NOT NULL,
+  options        JSONB NOT NULL,
+  correct_answer SMALLINT NOT NULL,
+  explanation    TEXT,
+  subcategory    TEXT,
+  exam_type      TEXT,
+  difficulty     TEXT DEFAULT 'medium',
+  is_repeated    BOOLEAN DEFAULT FALSE,
+  repeat_count   SMALLINT DEFAULT 0,
+  importance     TEXT DEFAULT 'medium',
+  is_public      BOOLEAN DEFAULT TRUE,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_islamiat_mcqs_difficulty ON public.islamiat_mcqs(difficulty);
+CREATE INDEX IF NOT EXISTS idx_islamiat_mcqs_importance ON public.islamiat_mcqs(importance);
+CREATE INDEX IF NOT EXISTS idx_islamiat_mcqs_exam_type  ON public.islamiat_mcqs(exam_type);
+CREATE INDEX IF NOT EXISTS idx_islamiat_mcqs_is_public  ON public.islamiat_mcqs(is_public);
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. quiz_attempts (one row per completed quiz)
@@ -77,7 +186,7 @@ CREATE INDEX IF NOT EXISTS idx_mcqs_is_public  ON public.mcqs(is_public);
 CREATE TABLE IF NOT EXISTS public.quiz_attempts (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id          UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  category         TEXT NOT NULL,
+  subject          TEXT NOT NULL,   -- e.g. "English", "Mathematics"
   exam_type        TEXT,
   started_at       TIMESTAMPTZ NOT NULL,
   completed_at     TIMESTAMPTZ NOT NULL,
@@ -90,39 +199,38 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_attempts_user     ON public.quiz_attempts(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_attempts_category ON public.quiz_attempts(user_id, category);
+CREATE INDEX IF NOT EXISTS idx_attempts_subject  ON public.quiz_attempts(user_id, subject);
 
 -- ─────────────────────────────────────────────────────────────
--- 4. attempt_answers (per-question detail — separate from attempts)
+-- 4. attempt_answers (per-question detail)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.attempt_answers (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   attempt_id      UUID NOT NULL REFERENCES public.quiz_attempts(id) ON DELETE CASCADE,
   user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  mcq_id          UUID REFERENCES public.mcqs(id) ON DELETE SET NULL,
-  category        TEXT NOT NULL,
+  mcq_id          UUID,            -- UUID of the MCQ from subject table
+  subject         TEXT NOT NULL,   -- which subject table the mcq belongs to
   selected_option SMALLINT,
   correct_option  SMALLINT NOT NULL,
   is_correct      BOOLEAN NOT NULL,
   time_spent_secs INT DEFAULT 0
 );
 
--- Partial index: only indexes incorrect answers (cheap for weak-area queries)
-CREATE INDEX IF NOT EXISTS idx_answers_user_wrong ON public.attempt_answers(user_id, category)
+CREATE INDEX IF NOT EXISTS idx_answers_user_wrong ON public.attempt_answers(user_id, subject)
   WHERE is_correct = FALSE;
 CREATE INDEX IF NOT EXISTS idx_answers_attempt ON public.attempt_answers(attempt_id);
 
 -- ─────────────────────────────────────────────────────────────
--- 5. weak_areas (pre-aggregated summary — avoids re-scanning attempt_answers)
+-- 5. weak_areas (pre-aggregated summary)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.weak_areas (
   user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  category        TEXT NOT NULL,
+  subject         TEXT NOT NULL,
   incorrect_count INT DEFAULT 0,
   total_count     INT DEFAULT 0,
   accuracy_pct    NUMERIC(5,2) DEFAULT 0,
   last_updated    TIMESTAMPTZ DEFAULT NOW(),
-  PRIMARY KEY (user_id, category)
+  PRIMARY KEY (user_id, subject)
 );
 
 CREATE INDEX IF NOT EXISTS idx_weak_areas_user ON public.weak_areas(user_id, accuracy_pct ASC);
@@ -139,14 +247,76 @@ CREATE TABLE IF NOT EXISTS public.daily_streaks (
 CREATE INDEX IF NOT EXISTS idx_streaks_user ON public.daily_streaks(user_id, streak_date DESC);
 
 -- ─────────────────────────────────────────────────────────────
--- 7. Row-Level Security (RLS)
+-- 7. vocab_words (shared content — all subjects)
 -- ─────────────────────────────────────────────────────────────
-ALTER TABLE public.user_profiles    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.quiz_attempts    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.attempt_answers  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.weak_areas       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.daily_streaks    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.mcqs             ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS public.vocab_words (
+  id            TEXT PRIMARY KEY,
+  word          TEXT NOT NULL,
+  meaning       TEXT NOT NULL,
+  urdu_meaning  TEXT,
+  synonyms      JSONB NOT NULL DEFAULT '[]',
+  antonyms      JSONB NOT NULL DEFAULT '[]',
+  example       TEXT NOT NULL DEFAULT '',
+  category      TEXT DEFAULT 'General Vocabulary',
+  is_public     BOOLEAN DEFAULT TRUE,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vocab_category  ON public.vocab_words(category);
+CREATE INDEX IF NOT EXISTS idx_vocab_is_public ON public.vocab_words(is_public);
+
+-- ─────────────────────────────────────────────────────────────
+-- 8. user_vocab_bookmarks (per-user bookmarks in cloud)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.user_vocab_bookmarks (
+  user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  vocab_id      TEXT NOT NULL REFERENCES public.vocab_words(id) ON DELETE CASCADE,
+  bookmarked_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, vocab_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON public.user_vocab_bookmarks(user_id);
+
+-- ─────────────────────────────────────────────────────────────
+-- 9. note_topics (study notes — shared content)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.note_topics (
+  id                  TEXT PRIMARY KEY,
+  subject             TEXT NOT NULL,
+  title               TEXT NOT NULL,
+  overview            TEXT NOT NULL DEFAULT '',
+  content             TEXT NOT NULL DEFAULT '',
+  key_points          JSONB NOT NULL DEFAULT '[]',
+  formulas            JSONB DEFAULT NULL,
+  tables_data         JSONB DEFAULT NULL,
+  exam_targets        JSONB NOT NULL DEFAULT '[]',
+  importance          TEXT DEFAULT 'medium',
+  estimated_read_time INT DEFAULT 5,
+  is_public           BOOLEAN DEFAULT TRUE,
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_note_topics_subject   ON public.note_topics(subject);
+CREATE INDEX IF NOT EXISTS idx_note_topics_is_public ON public.note_topics(is_public);
+
+-- ─────────────────────────────────────────────────────────────
+-- 10. Row-Level Security (RLS)
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE public.user_profiles          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quiz_attempts          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attempt_answers        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.weak_areas             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_streaks          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vocab_words            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_vocab_bookmarks   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.note_topics            ENABLE ROW LEVEL SECURITY;
+-- Subject MCQ tables
+ALTER TABLE public.english_mcqs           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pakistan_studies_mcqs  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.general_knowledge_mcqs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.computer_science_mcqs  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mathematics_mcqs       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.islamiat_mcqs          ENABLE ROW LEVEL SECURITY;
 
 -- user_profiles: own data only
 DROP POLICY IF EXISTS "Users own their profile" ON public.user_profiles;
@@ -173,18 +343,48 @@ DROP POLICY IF EXISTS "Users own their streaks" ON public.daily_streaks;
 CREATE POLICY "Users own their streaks" ON public.daily_streaks
   FOR ALL USING (auth.uid() = user_id);
 
--- mcqs: everyone can read public MCQs
-DROP POLICY IF EXISTS "Public MCQs are readable" ON public.mcqs;
-CREATE POLICY "Public MCQs are readable" ON public.mcqs
+-- vocab_words: public read
+DROP POLICY IF EXISTS "Public vocab readable" ON public.vocab_words;
+CREATE POLICY "Public vocab readable" ON public.vocab_words
   FOR SELECT USING (is_public = TRUE);
 
--- mcqs: creators can manage their own
-DROP POLICY IF EXISTS "Creators manage their MCQs" ON public.mcqs;
-CREATE POLICY "Creators manage their MCQs" ON public.mcqs
-  FOR ALL USING (auth.uid() = created_by);
+-- user_vocab_bookmarks: own data only
+DROP POLICY IF EXISTS "Users own their bookmarks" ON public.user_vocab_bookmarks;
+CREATE POLICY "Users own their bookmarks" ON public.user_vocab_bookmarks
+  FOR ALL USING (auth.uid() = user_id);
+
+-- note_topics: public read
+DROP POLICY IF EXISTS "Public notes readable" ON public.note_topics;
+CREATE POLICY "Public notes readable" ON public.note_topics
+  FOR SELECT USING (is_public = TRUE);
+
+-- Subject MCQ tables: public read
+DROP POLICY IF EXISTS "Public english MCQs readable" ON public.english_mcqs;
+CREATE POLICY "Public english MCQs readable" ON public.english_mcqs
+  FOR SELECT USING (is_public = TRUE);
+
+DROP POLICY IF EXISTS "Public pakistan studies MCQs readable" ON public.pakistan_studies_mcqs;
+CREATE POLICY "Public pakistan studies MCQs readable" ON public.pakistan_studies_mcqs
+  FOR SELECT USING (is_public = TRUE);
+
+DROP POLICY IF EXISTS "Public GK MCQs readable" ON public.general_knowledge_mcqs;
+CREATE POLICY "Public GK MCQs readable" ON public.general_knowledge_mcqs
+  FOR SELECT USING (is_public = TRUE);
+
+DROP POLICY IF EXISTS "Public CS MCQs readable" ON public.computer_science_mcqs;
+CREATE POLICY "Public CS MCQs readable" ON public.computer_science_mcqs
+  FOR SELECT USING (is_public = TRUE);
+
+DROP POLICY IF EXISTS "Public math MCQs readable" ON public.mathematics_mcqs;
+CREATE POLICY "Public math MCQs readable" ON public.mathematics_mcqs
+  FOR SELECT USING (is_public = TRUE);
+
+DROP POLICY IF EXISTS "Public islamiat MCQs readable" ON public.islamiat_mcqs;
+CREATE POLICY "Public islamiat MCQs readable" ON public.islamiat_mcqs
+  FOR SELECT USING (is_public = TRUE);
 
 -- ─────────────────────────────────────────────────────────────
--- 8. Atomic stat-increment RPC (avoids read-modify-write race conditions)
+-- 11. Atomic stat-increment RPC
 -- ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.increment_user_stats(
   p_user_id    UUID,
@@ -206,7 +406,7 @@ BEGIN
   IF v_last_date IS NULL THEN
     v_streak := 1;
   ELSIF p_streak_date > v_last_date + INTERVAL '1 day' THEN
-    v_streak := 1;   -- Gap in days — reset streak
+    v_streak := 1;   -- Gap — reset streak
   ELSIF p_streak_date = v_last_date + INTERVAL '1 day' THEN
     v_streak := v_streak + 1;   -- Consecutive day
   END IF;
@@ -232,5 +432,9 @@ $$;
 
 -- ─────────────────────────────────────────────────────────────
 -- Done! Verify tables were created:
--- SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+-- SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
+-- Expected: attempt_answers, computer_science_mcqs, daily_streaks, english_mcqs,
+--           general_knowledge_mcqs, islamiat_mcqs, mathematics_mcqs, note_topics,
+--           pakistan_studies_mcqs, quiz_attempts, user_profiles, user_vocab_bookmarks,
+--           vocab_words, weak_areas
 -- ─────────────────────────────────────────────────────────────

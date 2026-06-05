@@ -17,7 +17,7 @@ import {
   SafeAreaView,
   Animated,
   Easing,
-  Dimensions,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -41,13 +41,14 @@ import {
   ChevronLeft,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path } from 'react-native-svg';
 import { useApp } from '../../context/AppContext';
 import { UserService } from '../../services/user.service';
 import { supabase } from '../../lib/supabase';
 import { DEFAULT_MCQS, DEFAULT_VOCAB } from '../../data/defaultData';
 import { Button, Input, Text } from '../common';
 
-const { width: SW } = Dimensions.get('window');
+// SW constant removed - using dynamic useWindowDimensions() hook inside component
 
 // ─── Job/Exam Categories ─────────────────────────────────────────────────────
 
@@ -117,6 +118,27 @@ const DAILY_GOALS = [
   { value: 60, label: '60 min', sub: 'Champion — 6 quizzes', emoji: '🏆' },
 ];
 
+const GoogleIcon = ({ size = 18 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      fill="#4285F4"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <Path
+      fill="#34A853"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <Path
+      fill="#FBBC05"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+    />
+    <Path
+      fill="#EA4335"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+    />
+  </Svg>
+);
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 
@@ -129,8 +151,13 @@ interface OnboardingScreenProps {
 type Step = 0 | 1 | 2;
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
-  const { currentTheme, user, signIn, signUp } = useApp();
+  const { currentTheme, user, profile, signIn, signUp, signInWithGoogle } = useApp();
   const isDark = currentTheme === 'dark';
+  const { width } = useWindowDimensions();
+
+  const contentWidth = width - 48;
+  const jobCardWidth = (width - 50) / 2;
+  const goalCardWidth = (width - 52) / 2;
 
   const [step, setStep] = useState<Step>(0);
   const [selectedJob, setSelectedJob] = useState('General');
@@ -142,6 +169,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const [authMode, setAuthMode] = useState<'signIn' | 'signUp'>('signUp');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -193,6 +221,21 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     }).start();
   }, [showAuthForm]);
 
+  // Handle auto-onboarding state transitions once authenticated profile loads
+  useEffect(() => {
+    if (user && profile) {
+      if (profile.onboarding_done) {
+        // User already did onboarding; AppShell will unmount this screen.
+        setAuthLoading(false);
+      } else {
+        // New user or has not completed onboarding; proceed to Step 1.
+        setShowAuthForm(false);
+        animateStep(1);
+        setAuthLoading(false);
+      }
+    }
+  }, [user, profile]);
+
   // Animate step transitions
   const animateStep = (nextStep: Step) => {
     Animated.parallel([
@@ -239,24 +282,43 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       setAuthError('Please enter both email and password.');
       return;
     }
+    if (authMode === 'signUp' && !fullName.trim()) {
+      setAuthError('Please enter your full name.');
+      return;
+    }
     setAuthLoading(true);
     setAuthError(null);
     try {
       const { error } = authMode === 'signIn'
         ? await signIn(email.trim(), password)
-        : await signUp(email.trim(), password);
+        : await signUp(email.trim(), password, fullName.trim());
 
       if (error) {
         setAuthError(error.message || 'Failed to authenticate.');
+        setAuthLoading(false);
       } else {
         // User successfully signed in/registered!
-        // Proceed directly to personalization customization slide
-        setShowAuthForm(false);
-        animateStep(1);
+        // The [user, profile] useEffect will handle transitioning to Step 1 or letting them bypass.
       }
     } catch (e: any) {
       setAuthError(e.message || 'Something went wrong.');
-    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setAuthError(error.message || 'Google sign in failed.');
+        setAuthLoading(false);
+      } else {
+        // Successful Google sign in; the [user, profile] useEffect will handle state/transition.
+      }
+    } catch (e: any) {
+      setAuthError(e.message || 'Google sign in failed.');
       setAuthLoading(false);
     }
   };
@@ -268,7 +330,6 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   // ── Step 0: Welcome ─────────────────────────────────────────────────────────
   const renderWelcome = () => {
-    const contentWidth = SW - 48; // Scrollview padding accounted for
     return (
       <Animated.View style={[styles.welcomeContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <View style={{ overflow: 'hidden', width: contentWidth }}>
@@ -300,7 +361,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                 <Text style={[styles.welcomeTitle, { color: colors.text }]}>
                   Your Dream Job{'\n'}Starts Here 🚀
                 </Text>
-                <Text style={[styles.welcomeSub, { color: colors.textMuted }]}>
+                <Text style={[styles.welcomeSub, { color: colors.textMuted, maxWidth: width - 60 }]}>
                   Thousands of aspirants across KP are preparing daily with Smart Prep. With focused MCQs, vocab, notes and mock tests — you are already one step ahead.
                 </Text>
               </View>
@@ -329,6 +390,16 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                 style={{ marginTop: 12 }}
               />
 
+              {/* Google Sign-In */}
+              <Button
+                label="Continue with Google"
+                onPress={handleGoogleSignIn}
+                isDark={isDark}
+                variant="outline"
+                icon={<GoogleIcon />}
+                style={{ marginTop: 4 }}
+              />
+
               {/* Option 2: Proceed as Guest */}
               <Button
                 label="Proceed as Guest"
@@ -336,6 +407,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                 isDark={isDark}
                 variant="outline"
                 iconRight={<ChevronRight size={18} color={colors.primary} />}
+                style={{ marginTop: 4 }}
               />
 
               {/* Skip all */}
@@ -346,12 +418,8 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               </TouchableOpacity>
             </View>
 
-            {/* Auth Form Panel — wrapped in KeyboardAvoidingView */}
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-              style={{ width: contentWidth }}
-            >
+            {/* Auth Form Panel */}
+            <View style={{ width: contentWidth }}>
               <View style={{ gap: 14 }}>
                 {/* Back Button */}
                 <TouchableOpacity
@@ -379,6 +447,20 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                     <Text style={styles.errorText}>{authError}</Text>
                   </View>
                 )}
+
+                {authMode === 'signUp' && (
+                   <Input
+                     value={fullName}
+                     onChangeText={setFullName}
+                     placeholder="Full Name"
+                     isDark={isDark}
+                     icon={<Users size={16} color={colors.textMuted} />}
+                     autoCapitalize="words"
+                     autoCorrect={false}
+                     returnKeyType="next"
+                     accessibilityLabel="Full Name input field"
+                   />
+                 )}
 
                 {/* Email input */}
                 <Input
@@ -420,6 +502,21 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                   style={{ marginTop: 4 }}
                 />
 
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
+                  <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                  <Text style={{ marginHorizontal: 10, color: colors.textMuted, fontSize: 12 }}>OR</Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                </View>
+
+                {/* Google Sign-In */}
+                <Button
+                  label="Continue with Google"
+                  onPress={handleGoogleSignIn}
+                  isDark={isDark}
+                  variant="outline"
+                  icon={<GoogleIcon />}
+                />
+
                 {/* Switch mode */}
                 <TouchableOpacity
                   onPress={() => { setAuthMode(authMode === 'signIn' ? 'signUp' : 'signIn'); setAuthError(null); }}
@@ -430,7 +527,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                   </Text>
                 </TouchableOpacity>
               </View>
-            </KeyboardAvoidingView>
+            </View>
           </Animated.View>
         </View>
       </Animated.View>
@@ -462,6 +559,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                   backgroundColor: selected ? `${job.color}12` : colors.card,
                   borderColor: selected ? job.color : colors.border,
                   borderWidth: selected ? 1.5 : 1,
+                  width: jobCardWidth,
                 },
               ]}
             >
@@ -509,6 +607,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                   backgroundColor: selected ? colors.primaryDim : colors.card,
                   borderColor: selected ? colors.primary : colors.border,
                   borderWidth: selected ? 2 : 1,
+                  width: goalCardWidth,
                 },
               ]}
             >
@@ -534,12 +633,18 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   if (step === 0) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
-        <ScrollView
-          contentContainerStyle={styles.welcomeScroll}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
         >
-          {renderWelcome()}
-        </ScrollView>
+          <ScrollView
+            contentContainerStyle={styles.welcomeScroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {renderWelcome()}
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
@@ -632,7 +737,7 @@ const styles = StyleSheet.create({
   welcomeCopy: { alignItems: 'center', gap: 10 },
   welcomeTag: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
   welcomeTitle: { fontSize: 28, fontWeight: '900', textAlign: 'center', lineHeight: 36, letterSpacing: -0.5 },
-  welcomeSub: { fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: SW - 60 },
+  welcomeSub: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
   featurePills: { flexDirection: 'row', gap: 8 },
   featurePill: {
     flexDirection: 'row',
@@ -747,7 +852,6 @@ const styles = StyleSheet.create({
   // Job grid
   jobGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   jobCard: {
-    width: (SW - 50) / 2,
     borderRadius: 16,
     padding: 14,
     gap: 6,
@@ -763,7 +867,6 @@ const styles = StyleSheet.create({
   // Goal grid
   goalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 },
   goalCard: {
-    width: (SW - 52) / 2,
     padding: 16,
     borderRadius: 16,
     gap: 4,

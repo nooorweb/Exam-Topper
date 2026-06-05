@@ -34,9 +34,9 @@ export default function ToggleRow({
   separator = true,
   rightElement,
 }: ToggleRowProps) {
-  const borderColor = isDark ? '#1f1f23' : '#e5e7eb';
-  const textColor = isDark ? '#f4f4f5' : '#1f2937';
-  const mutedColor = isDark ? '#6b7280' : '#9ca3af';
+  const borderColor = isDark ? '#2A2D3A' : '#e5e7eb';
+  const textColor = isDark ? '#e1e2eb' : '#1f2937';
+  const mutedColor = isDark ? '#c8c4d6' : '#9ca3af';
 
   return (
     <View
@@ -56,8 +56,8 @@ export default function ToggleRow({
         <Switch
           value={value}
           onValueChange={onToggle}
-          trackColor={{ false: '#374151', true: '#a5b4fc' }}
-          thumbColor={value ? '#6366f1' : '#9ca3af'}
+          trackColor={{ false: '#374151', true: '#c6bfff' }}
+          thumbColor={value ? '#7C6FF0' : '#9ca3af'}
           accessibilityRole="switch"
           accessibilityLabel={label}
           accessibilityState={{ checked: value }}

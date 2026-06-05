@@ -4,7 +4,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Dimensions,
+  useWindowDimensions,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -17,9 +17,7 @@ import { Bookmark, Volume2, ChevronLeft, ChevronRight, BookmarkCheck, Sparkles }
 import { router } from 'expo-router';
 import { GeminiService } from '../../src/services/gemini.service';
 
-const { width: SW } = Dimensions.get('window');
-const CARD_GAP = 12;
-const CARD_W = SW - 48;
+// Module-level static SW constant removed to use dynamic useWindowDimensions inside components
 
 // ─── Word Card (single slide) ─────────────────────────────────────────────────
 function WordCard({
@@ -27,11 +25,13 @@ function WordCard({
   isDark,
   isBookmarked,
   onBookmark,
+  cardWidth,
 }: {
   word: VocabWord;
   isDark: boolean;
   isBookmarked: boolean;
   onBookmark: () => void;
+  cardWidth: number;
 }) {
   const text  = isDark ? '#f4f4f5' : '#1f2937';
   const muted = isDark ? '#9ca3af' : '#6b7280';
@@ -39,7 +39,7 @@ function WordCard({
   const border= isDark ? '#1f1f23' : '#e5e7eb';
 
   return (
-    <View style={[wc.card, { backgroundColor: bg, borderColor: border, width: CARD_W }]}>
+    <View style={[wc.card, { backgroundColor: bg, borderColor: border, width: cardWidth }]}>
       {/* Header Row: Word & Bookmark Button */}
       <View style={wc.headerRow}>
         <Text style={[wc.word, { color: '#6366f1' }]} numberOfLines={1} adjustsFontSizeToFit>
@@ -242,6 +242,10 @@ const bm = StyleSheet.create({
 export default function VocabScreen() {
   const { vocab, bookmarkWord, currentTheme, bulkImportVocab } = useApp();
   const isDark = currentTheme === 'dark';
+  
+  const { width } = useWindowDimensions();
+  const cardGap = 12;
+  const cardWidth = width - 48;
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [aiLoading, setAiLoading] = useState(false);
@@ -324,7 +328,7 @@ export default function VocabScreen() {
 
   const onScrollEnd = (e: any) => {
     const offset = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(offset / (CARD_W + CARD_GAP));
+    const idx = Math.round(offset / (cardWidth + cardGap));
     setCurrentIdx(idx);
   };
 
@@ -403,7 +407,7 @@ export default function VocabScreen() {
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={CARD_W + CARD_GAP}
+            snapToInterval={cardWidth + cardGap}
             decelerationRate="fast"
             snapToAlignment="center"
             onMomentumScrollEnd={onScrollEnd}
@@ -413,13 +417,14 @@ export default function VocabScreen() {
                 isDark={isDark}
                 isBookmarked={item.isBookmarked}
                 onBookmark={() => bookmarkWord(item.id)}
+                cardWidth={cardWidth}
               />
             )}
             style={s.slider}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: CARD_GAP }}
+            contentContainerStyle={{ paddingHorizontal: 24, gap: cardGap }}
             getItemLayout={(_, index) => ({
-              length: CARD_W + CARD_GAP,
-              offset: (CARD_W + CARD_GAP) * index,
+              length: cardWidth + cardGap,
+              offset: (cardWidth + cardGap) * index,
               index,
             })}
           />

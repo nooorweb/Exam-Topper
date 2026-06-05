@@ -24,21 +24,37 @@ export const AuthService = {
       options: displayName ? { data: { full_name: displayName } } : undefined,
     }),
 
-  // ─── Google Sign-In (Native) ────────────────────────────────────────────────
-  // TODO: Run `npx expo install @react-native-google-signin/google-signin`
-  // then uncomment this block.
-  //
-  // signInWithGoogle: async () => {
-  //   const { GoogleSignin } = await import(
-  //     '@react-native-google-signin/google-signin'
-  //   );
-  //   await GoogleSignin.hasPlayServices();
-  //   const { idToken } = await GoogleSignin.signIn();
-  //   return supabase.auth.signInWithIdToken({
-  //     provider: 'google',
-  //     token: idToken!,
-  //   });
-  // },
+  // ─── Google OAuth ───────────────────────────────────────────────────────────
+
+  /**
+   * Begin Google sign-in via Supabase OAuth.
+   * Returns an auth URL that the caller should open with expo-web-browser.
+   * Pass `redirectTo` so Supabase sends the user back to the app after auth.
+   */
+  signInWithGoogle: async (redirectTo: string) =>
+    supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    }),
+
+  /** Begin Google sign-in directly on web without opening a popup */
+  signInWithGoogleWeb: async (redirectTo: string) =>
+    supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+      },
+    }),
+
+  /**
+   * After the browser redirect completes, exchange the access/refresh tokens
+   * extracted from the callback URL fragment for a Supabase session.
+   */
+  setSessionFromTokens: async (accessToken: string, refreshToken: string) =>
+    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }),
 
   // ─── Session ────────────────────────────────────────────────────────────────
 

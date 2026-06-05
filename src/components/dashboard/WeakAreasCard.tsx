@@ -77,9 +77,9 @@ export default function WeakAreasCard({ weakAreas, isDark, onPractice }: WeakAre
       <View style={styles.areaList}>
         {weakAreas.slice(0, 4).map((area, i) => {
           const acColor = getAccuracyColor(area.accuracy_pct);
-          const catColor = CATEGORY_COLORS[area.category] ?? colors.primary;
+          const catColor = CATEGORY_COLORS[area.subject] ?? colors.primary;
           return (
-            <View key={area.category}>
+            <View key={area.subject}>
               {i > 0 && <View style={[styles.separator, { backgroundColor: colors.border }]} />}
               <View style={styles.areaRow}>
                 <View style={styles.areaLeft}>
@@ -88,7 +88,7 @@ export default function WeakAreasCard({ weakAreas, isDark, onPractice }: WeakAre
                   <View style={{ flex: 1 }}>
                     <View style={styles.areaTopRow}>
                       <Text style={[styles.areaName, { color: colors.text }]} numberOfLines={1}>
-                        {area.category}
+                        {area.subject}
                       </Text>
                       <Text style={[styles.areaAccuracy, { color: acColor }]}>
                         {Math.round(area.accuracy_pct)}%
@@ -115,7 +115,7 @@ export default function WeakAreasCard({ weakAreas, isDark, onPractice }: WeakAre
 
                 {/* Practice CTA */}
                 <TouchableOpacity
-                  onPress={() => onPractice(area.category)}
+                  onPress={() => onPractice(area.subject)}
                   style={[styles.practiceBtn, { backgroundColor: `${catColor}15`, borderColor: `${catColor}30` }]}
                 >
                   <Text style={[styles.practiceBtnText, { color: catColor }]}>Fix</Text>
