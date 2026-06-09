@@ -14,7 +14,8 @@ import { useApp } from '../../src/context/AppContext';
 import { VocabWord } from '../../src/types';
 import * as Speech from 'expo-speech';
 import { Bookmark, Volume2, ChevronLeft, ChevronRight, BookmarkCheck, Sparkles } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GeminiService } from '../../src/services/gemini.service';
 
 // Module-level static SW constant removed to use dynamic useWindowDimensions inside components
@@ -299,8 +300,50 @@ export default function VocabScreen() {
     card:   isDark ? '#121214' : '#ffffff',
   };
 
-  // All vocab words (no filtering — simple slider through everything)
-  const words = vocab;
+  const [examFocus, setExamFocus] = useState<string>('General');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+      const loadFocus = async () => {
+        try {
+          const savedFocus = await AsyncStorage.getItem('smart_prep_focus');
+          if (savedFocus && isMounted) {
+            setExamFocus(savedFocus);
+          }
+        } catch (_) {}
+      };
+      loadFocus();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
+
+  // Helper to match vocabulary to active focus
+  const matchesVocabFocus = (word: any, focus: string): boolean => {
+    const catLower = (word.category || '').toLowerCase();
+    if (focus === 'KPPSC & ETEA') {
+      return catLower.includes('kppsc') || catLower.includes('etea') || catLower.includes('general') || catLower.includes('acronym');
+    }
+    if (focus === 'FIA Inspector') {
+      return catLower.includes('fia') || catLower.includes('fpsc') || catLower.includes('general') || catLower.includes('acronym');
+    }
+    if (focus === 'CSS Descriptive') {
+      return catLower.includes('css') || catLower.includes('fpsc') || catLower.includes('general') || catLower.includes('acronym');
+    }
+    if (focus === 'All Punjab/Sindh Boards') {
+      return catLower.includes('pms') || catLower.includes('nts') || catLower.includes('general') || catLower.includes('acronym');
+    }
+    return true;
+  };
+
+  // Filter vocabulary by user's active focus target to avoid "mix pickle"
+  const words = useMemo(() => {
+    const filtered = vocab.filter(w => matchesVocabFocus(w, examFocus));
+    return filtered.length > 0 ? filtered : vocab;
+  }, [vocab, examFocus]);
+
   const bookmarked = useMemo(() => vocab.filter((v) => v.isBookmarked), [vocab]);
 
   const currentWord = words[currentIdx] ?? null;

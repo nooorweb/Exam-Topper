@@ -256,10 +256,16 @@ export default function DashboardScreen() {
   // Compile today's 3 deterministic learning words
   const todayDraftWords = useMemo(() => {
     if (vocab.length === 0) return [];
-    const englishWords = vocab.filter(w => w.category !== 'Exam Acronym' && w.id.startsWith('vocab'));
-    const acronyms = vocab.filter(w => w.category === 'Exam Acronym' || w.id.startsWith('acronym'));
+    
+    // Filter vocab by user's active focus
+    const filteredVocab = vocab.filter(w => matchesVocabFocus(w, examFocus));
+    const activeVocabPool = filteredVocab.length > 0 ? filteredVocab : vocab;
+
+    const englishWords = activeVocabPool.filter(w => w.category !== 'Exam Acronym' && w.id.startsWith('vocab'));
+    const acronyms = activeVocabPool.filter(w => w.category === 'Exam Acronym' || w.id.startsWith('acronym'));
+    
     if (englishWords.length === 0 || acronyms.length === 0) {
-      return vocab.slice(0, 3);
+      return activeVocabPool.slice(0, 3);
     }
     const selected = [];
     for (let i = 0; i < 2; i++) {
@@ -269,7 +275,7 @@ export default function DashboardScreen() {
     const aIdx = daySeed % acronyms.length;
     selected.push(acronyms[aIdx]);
     return selected.filter(Boolean);
-  }, [vocab, daySeed]);
+  }, [vocab, daySeed, examFocus]);
 
   const accuracyText = useMemo(() => {
     if (stats.totalQuestionsAnswered === 0) return '0%';
@@ -313,9 +319,15 @@ export default function DashboardScreen() {
 
   // Compile today's 2 deterministic wallpaper vocabulary words
   const todayWallpaperWords = useMemo(() => {
-    const englishWords = vocab.filter(w => w.category !== 'Exam Acronym' && w.id.startsWith('vocab'));
+    if (vocab.length === 0) return [];
+    
+    // Filter vocab by user's active focus
+    const filteredVocab = vocab.filter(w => matchesVocabFocus(w, examFocus));
+    const activeVocabPool = filteredVocab.length > 0 ? filteredVocab : vocab;
+
+    const englishWords = activeVocabPool.filter(w => w.category !== 'Exam Acronym' && w.id.startsWith('vocab'));
     if (englishWords.length === 0) {
-      return vocab.slice(0, 2);
+      return activeVocabPool.slice(0, 2);
     }
     const selected = [];
     for (let i = 0; i < 2; i++) {
@@ -323,7 +335,7 @@ export default function DashboardScreen() {
       selected.push(englishWords[idx]);
     }
     return selected.filter(Boolean);
-  }, [vocab, daySeed]);
+  }, [vocab, daySeed, examFocus]);
 
   const [isQuickDownloading, setIsQuickDownloading] = useState(false);
   const quickDownloadRef = useRef<ViewShot>(null);
