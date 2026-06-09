@@ -98,5 +98,65 @@ export const MCQService = {
     } else {
       await CacheService.clearAll();
     }
+  },
+
+  /**
+   * Fetch mixed questions across all subjects
+   */
+  fetchMixedQuestions: async (
+    difficulty: string,
+    limit: number
+  ): Promise<MCQ[]> => {
+    const subjects = Object.keys(SUBJECT_TABLE_MAP);
+    const limitPerSubject = Math.ceil(limit / subjects.length);
+    
+    try {
+      const promises = subjects.map(sub => MCQService.fetchQuizQuestions(sub, difficulty, limitPerSubject));
+      const results = await Promise.all(promises);
+      const mixed = results.flat().sort(() => 0.5 - Math.random());
+      return mixed.slice(0, limit);
+    } catch (error) {
+      console.warn("MCQService: Failed to fetch mixed from Supabase, falling back.", error);
+      let fallbackPool = [...DEFAULT_MCQS];
+      if (difficulty !== 'All') {
+        const targetDiff = difficulty.toLowerCase();
+        fallbackPool = fallbackPool.filter(m => (m.importance || 'medium') === targetDiff);
+      }
+      return fallbackPool.sort(() => 0.5 - Math.random()).slice(0, limit);
+    }
+  },
+
+  /** Fetch all public MCQs across all subjects from Supabase */
+  fetchAllMCQs: async (): Promise<MCQ[]> => {
+    const subjects = Object.keys(SUBJECT_TABLE_MAP);
+    try {
+      const promises = subjects.map(async (subject) => {
+        const tableName = SUBJECT_TABLE_MAP[subject];
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('id, question, options, correct_answer, explanation, subcategory, exam_type, difficulty, importance, is_repeated')
+          .eq('is_public', true);
+        
+        if (error) throw error;
+        
+        return (data || []).map((row) => ({
+          id: row.id,
+          question: row.question,
+          options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
+          correctAnswer: row.correct_answer,
+          explanation: row.explanation ?? '',
+          category: subject as MCQ['category'],
+          subcategory: row.subcategory ?? undefined,
+          examType: row.exam_type ?? undefined,
+          importance: row.importance ?? undefined,
+          isRepeated: row.is_repeated ?? false,
+        }));
+      });
+      const results = await Promise.all(promises);
+      return results.flat();
+    } catch (error) {
+      console.warn("MCQService: Failed to fetch all MCQs from database", error);
+      return [];
+    }
   }
 };

@@ -143,7 +143,7 @@ export default function QuizSessionScreen() {
       };
       loadAiMCQs();
     } else {
-      // Standard mode: Synchronous, fully offline filtering of local pool with exam focus priority
+      // Standard mode: Fetch from API, apply exam focus priority
       const loadStandardMCQs = async () => {
         const focus = await AsyncStorage.getItem('smart_prep_focus');
         const activeFocus = focus || 'KPPSC & ETEA';
@@ -155,30 +155,37 @@ export default function QuizSessionScreen() {
           const ids = customIds.split(',');
           selectedQuestions = mcqs.filter(m => ids.includes(m.id));
         } else {
-          let pool = [...mcqs];
-          if (!isMixed) pool = pool.filter(m => m.category === categoryParam);
+          try {
+            let fetchedPool: MCQ[] = [];
+            if (isMixed) {
+              fetchedPool = await MCQService.fetchMixedQuestions(difficultyParam, questionsLimit * 3);
+            } else {
+              fetchedPool = await MCQService.fetchQuizQuestions(categoryParam, difficultyParam, questionsLimit * 3);
+            }
 
-          // Apply user's exam focus filter to avoid the "mix pickle"
-          let focusPool = pool.filter(m => matchesFocus(m, activeFocus));
-          if (focusPool.length === 0) focusPool = pool;
+            // Apply user's exam focus filter to avoid the "mix pickle"
+            let focusPool = fetchedPool.filter(m => matchesFocus(m, activeFocus));
+            if (focusPool.length === 0) focusPool = fetchedPool;
 
-          let filteredPool = [...focusPool];
-          if (difficultyParam === 'Conceptual') {
-            const conceptual = filteredPool.filter(m => m.importance === 'medium' || m.importance === 'low');
-            if (conceptual.length > 0) filteredPool = conceptual;
-          } else if (difficultyParam === 'High Repeats') {
-            const repeats = filteredPool.filter(m => m.isRepeated === true);
-            if (repeats.length > 0) filteredPool = repeats;
-          }
+            let filteredPool = [...focusPool];
+            if (difficultyParam === 'Conceptual') {
+              const conceptual = filteredPool.filter(m => m.importance === 'medium' || m.importance === 'low');
+              if (conceptual.length > 0) filteredPool = conceptual;
+            } else if (difficultyParam === 'High Repeats') {
+              const repeats = filteredPool.filter(m => m.isRepeated === true);
+              if (repeats.length > 0) filteredPool = repeats;
+            }
 
-          selectedQuestions = filteredPool.sort(() => 0.5 - Math.random()).slice(0, questionsLimit);
+            selectedQuestions = filteredPool.sort(() => 0.5 - Math.random()).slice(0, questionsLimit);
 
-          // If not enough questions match, fill with other ones from the category
-          if (selectedQuestions.length < questionsLimit) {
-            const remaining = questionsLimit - selectedQuestions.length;
-            const selectedIds = new Set(selectedQuestions.map(q => q.id));
-            const extra = pool.filter(q => !selectedIds.has(q.id)).sort(() => 0.5 - Math.random()).slice(0, remaining);
-            selectedQuestions = [...selectedQuestions, ...extra];
+            if (selectedQuestions.length < questionsLimit) {
+              const remaining = questionsLimit - selectedQuestions.length;
+              const selectedIds = new Set(selectedQuestions.map(q => q.id));
+              const extra = fetchedPool.filter(q => !selectedIds.has(q.id)).sort(() => 0.5 - Math.random()).slice(0, remaining);
+              selectedQuestions = [...selectedQuestions, ...extra];
+            }
+          } catch (error) {
+            console.error("Failed to load standard MCQs", error);
           }
         }
         setQuestions(selectedQuestions);
@@ -220,6 +227,32 @@ export default function QuizSessionScreen() {
 
   // Animation for flash feedback
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (loading) {
+      Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, { toValue: -15, duration: 400, useNativeDriver: true }),
+          Animated.timing(bounceAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [loading]);
+
+  const spin = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
 
   // ── Timer ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -326,14 +359,16 @@ export default function QuizSessionScreen() {
     return (
       <SafeAreaView style={[s.fill, { backgroundColor: C.bg }]}>
         <View style={s.emptyBox}>
-          <Sparkles size={44} color={C.success} />
+          <Animated.View style={{ transform: [{ translateY: bounceAnim }, { rotate: spin }] }}>
+            <Sparkles size={50} color={C.primary} />
+          </Animated.View>
           <Text style={[s.emptyTitle, { color: C.text }]}>
-            {isAiMode ? 'Loading AI Quiz…' : 'Loading Quiz…'}
+            {isAiMode ? 'Conjuring AI Magic…' : 'Pulling From Database…'}
           </Text>
           <Text style={[s.emptyBody, { color: C.textMuted }]}>
             {isAiMode
-              ? 'Preparing your Gemini-generated questions. This only takes a moment.'
-              : 'Fetching optimized practice questions from database/cache.'}
+              ? 'Gemini is thinking real hard. Give it a sec!'
+              : 'Hold tight! Snatching those smart questions from the cloud! ☁️'}
           </Text>
         </View>
       </SafeAreaView>

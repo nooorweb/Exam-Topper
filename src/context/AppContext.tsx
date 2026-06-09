@@ -7,6 +7,8 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MCQ, VocabWord, UserStats, QuizSession } from '../types';
 import { DEFAULT_MCQS, DEFAULT_VOCAB } from '../data/defaultData';
+import { VocabService } from '../services/vocab.service';
+import { MCQService } from '../services/mcq.service';
 import { AuthService } from '../services/auth.service';
 import { UserService, type UserProfile } from '../services/user.service';
 import { QuizService } from '../services/quiz.service';
@@ -110,6 +112,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const loadVocabData = async (userId?: string) => {
+    try {
+      let dbVocab = await VocabService.fetchVocabWords();
+      if (dbVocab && dbVocab.length > 0) {
+        let bookmarkedIds: string[] = [];
+        if (userId) {
+          bookmarkedIds = await VocabService.fetchUserBookmarks(userId);
+        } else {
+          const storedLocal = await AsyncStorage.getItem('smart_prep_vocab');
+          if (storedLocal) {
+            const parsedLocal: VocabWord[] = JSON.parse(storedLocal);
+            bookmarkedIds = parsedLocal.filter(w => w.isBookmarked).map(w => w.id);
+          }
+        }
+        const bookmarkSet = new Set(bookmarkedIds);
+        dbVocab = dbVocab.map(w => ({
+          ...w,
+          isBookmarked: bookmarkSet.has(w.id)
+        }));
+        setVocab(dbVocab);
+        await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(dbVocab));
+      } else {
+        const storedLocal = await AsyncStorage.getItem('smart_prep_vocab');
+        if (storedLocal) {
+          setVocab(JSON.parse(storedLocal));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading vocab data:', err);
+    }
+  };
+
+  const loadMCQData = async () => {
+    try {
+      const dbMcqs = await MCQService.fetchAllMCQs();
+      if (dbMcqs && dbMcqs.length > 0) {
+        setMcqs(dbMcqs);
+        await AsyncStorage.setItem('smart_prep_mcqs', JSON.stringify(dbMcqs));
+      }
+    } catch (err) {
+      console.error('Error loading MCQs data from database:', err);
+    }
+  };
+
   const refreshProfile = async () => {
     if (user) {
       await fetchUserProfile(user.id);
@@ -176,36 +222,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             return m;
           });
-        } else {
-          parsedMcqs = DEFAULT_MCQS;
-          hasUpdates = true;
         }
 
         if (hasUpdates) {
           await AsyncStorage.setItem('smart_prep_mcqs', JSON.stringify(parsedMcqs));
         }
         setMcqs(parsedMcqs);
+        // Load fresh MCQs from DB in background
+        loadMCQData();
 
         // Vocab loading
         const storedVocab = await AsyncStorage.getItem('smart_prep_vocab');
         if (storedVocab) {
-          const parsed: VocabWord[] = JSON.parse(storedVocab);
-          const parsedIds = new Set(parsed.map(w => w.id));
-          let hasNewWords = false;
-          DEFAULT_VOCAB.forEach((word) => {
-            if (!parsedIds.has(word.id)) {
-              parsed.push(word);
-              hasNewWords = true;
-            }
-          });
-          if (hasNewWords) {
-            await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(parsed));
-          }
-          setVocab(parsed);
-        } else {
-          setVocab(DEFAULT_VOCAB);
-          await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(DEFAULT_VOCAB));
+          setVocab(JSON.parse(storedVocab));
         }
+        // Fetch fresh words from DB in background
+        loadVocabData();
 
         // Stats loading
         const storedStats = await AsyncStorage.getItem('smart_prep_stats');
@@ -235,7 +267,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(u);
       if (u) {
         await fetchUserProfile(u.id);
+        await loadVocabData(u.id);
         QuizService.flushPendingSync(u.id).catch(() => null);
+      } else {
+        await loadVocabData();
       }
     });
 
@@ -244,9 +279,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(u);
       if (_event === 'SIGNED_IN' && u) {
         await fetchUserProfile(u.id);
+        await loadVocabData(u.id);
         QuizService.flushPendingSync(u.id).catch(() => null);
       } else if (_event === 'SIGNED_OUT') {
         setProfile(null);
+        await loadVocabData();
       }
     });
 
@@ -267,9 +304,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const bookmarkWord = async (id: string) => {
-    const updated = vocab.map((v) => (v.id === id ? { ...v, isBookmarked: !v.isBookmarked } : v));
+    const word = vocab.find(v => v.id === id);
+    if (!word) return;
+    const nextBookmarked = !word.isBookmarked;
+
+    const updated = vocab.map((v) => (v.id === id ? { ...v, isBookmarked: nextBookmarked } : v));
     setVocab(updated);
     await AsyncStorage.setItem('smart_prep_vocab', JSON.stringify(updated));
+
+    if (user) {
+      await VocabService.toggleBookmark(user.id, id, nextBookmarked);
+    }
   };
 
   const addMCQ = async (newMcq: Omit<MCQ, 'id'>) => {
