@@ -114,6 +114,23 @@ const renderMarkdownText = (markdownText: string, colors: any) => {
   });
 };
 
+const matchesVocabFocus = (word: any, focus: string): boolean => {
+  const catLower = (word.category || '').toLowerCase();
+  if (focus === 'KPPSC & ETEA') {
+    return catLower.includes('kppsc') || catLower.includes('etea') || catLower.includes('general') || catLower.includes('acronym');
+  }
+  if (focus === 'FIA Inspector') {
+    return catLower.includes('fia') || catLower.includes('fpsc') || catLower.includes('general') || catLower.includes('acronym');
+  }
+  if (focus === 'CSS Descriptive') {
+    return catLower.includes('css') || catLower.includes('fpsc') || catLower.includes('general') || catLower.includes('acronym');
+  }
+  if (focus === 'All Punjab/Sindh Boards') {
+    return catLower.includes('pms') || catLower.includes('nts') || catLower.includes('general') || catLower.includes('acronym');
+  }
+  return true;
+};
+
 export default function DashboardScreen() {
   const {
     stats,

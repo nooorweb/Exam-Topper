@@ -4,6 +4,21 @@
 -- Run this ENTIRE file in the Supabase SQL Editor
 -- ============================================================
 
+-- DROP old and new tables to ensure a clean, optimized schema re-creation
+DROP TABLE IF EXISTS public.mcqs CASCADE;
+DROP TABLE IF EXISTS public.english_mcqs CASCADE;
+DROP TABLE IF EXISTS public.pakistan_studies_mcqs CASCADE;
+DROP TABLE IF EXISTS public.general_knowledge_mcqs CASCADE;
+DROP TABLE IF EXISTS public.computer_science_mcqs CASCADE;
+DROP TABLE IF EXISTS public.mathematics_mcqs CASCADE;
+DROP TABLE IF EXISTS public.islamiat_mcqs CASCADE;
+DROP TABLE IF EXISTS public.quiz_attempts CASCADE;
+DROP TABLE IF EXISTS public.weak_areas CASCADE;
+DROP TABLE IF EXISTS public.daily_streaks CASCADE;
+DROP TABLE IF EXISTS public.user_vocab_bookmarks CASCADE;
+DROP TABLE IF EXISTS public.vocab_words CASCADE;
+DROP TABLE IF EXISTS public.note_topics CASCADE;
+
 -- ─────────────────────────────────────────────────────────────
 -- 1. user_profiles
 -- ─────────────────────────────────────────────────────────────
