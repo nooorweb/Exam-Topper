@@ -157,10 +157,23 @@ export default function QuizSessionScreen() {
         } else {
           try {
             let fetchedPool: MCQ[] = [];
-            if (isMixed) {
-              fetchedPool = await MCQService.fetchMixedQuestions(difficultyParam, questionsLimit * 3);
-            } else {
-              fetchedPool = await MCQService.fetchQuizQuestions(categoryParam, difficultyParam, questionsLimit * 3);
+            const fetchPromise = isMixed
+              ? MCQService.fetchMixedQuestions(difficultyParam, questionsLimit * 3)
+              : MCQService.fetchQuizQuestions(categoryParam, difficultyParam, questionsLimit * 3);
+
+            const timeoutPromise = new Promise<MCQ[]>((resolve) =>
+              setTimeout(() => resolve([]), 2500)
+            );
+
+            fetchedPool = await Promise.race([fetchPromise, timeoutPromise]);
+
+            if (!fetchedPool || fetchedPool.length === 0) {
+              console.log("Supabase fetch timed out or returned empty. Falling back to local MCQs cache.");
+              let localPool = mcqs;
+              if (!isMixed) {
+                localPool = mcqs.filter(m => m.category === categoryParam);
+              }
+              fetchedPool = localPool;
             }
 
             // Apply user's exam focus filter to avoid the "mix pickle"
