@@ -6,9 +6,10 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MCQ, VocabWord, UserStats, QuizSession } from '../types';
-import { DEFAULT_MCQS, DEFAULT_VOCAB } from '../data/defaultData';
+import { NoteTopic, SubjectNotebook } from '../data/notesData';
 import { VocabService } from '../services/vocab.service';
 import { MCQService } from '../services/mcq.service';
+import { NoteService } from '../services/note.service';
 import { AuthService } from '../services/auth.service';
 import { UserService, type UserProfile } from '../services/user.service';
 import { QuizService } from '../services/quiz.service';
@@ -29,6 +30,8 @@ const generateUUID = () => {
 interface AppContextProps {
   mcqs: MCQ[];
   vocab: VocabWord[];
+  noteTopics: NoteTopic[];
+  subjectNotebooks: SubjectNotebook[];
   stats: UserStats;
   currentTheme: 'light' | 'dark';
   toggleTheme: () => void;
@@ -61,6 +64,7 @@ const AppContext = createContext<AppContextProps | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mcqs, setMcqs] = useState<MCQ[]>([]);
   const [vocab, setVocab] = useState<VocabWord[]>([]);
+  const [noteTopics, setNoteTopics] = useState<NoteTopic[]>([]);
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('dark');
   const [isNewDayDetected, setIsNewDayDetected] = useState<boolean>(false);
   const [autoDownloadWallpaper, setAutoDownloadWallpaper] = useState<boolean>(false);
@@ -156,6 +160,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const loadNotesData = async () => {
+    try {
+      const dbNotes = await NoteService.fetchNoteTopics();
+      if (dbNotes && dbNotes.length > 0) {
+        setNoteTopics(dbNotes);
+        await AsyncStorage.setItem('smart_prep_notes', JSON.stringify(dbNotes));
+      } else {
+        const storedLocal = await AsyncStorage.getItem('smart_prep_notes');
+        if (storedLocal) {
+          setNoteTopics(JSON.parse(storedLocal));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading notes data from database:', err);
+      const storedLocal = await AsyncStorage.getItem('smart_prep_notes');
+      if (storedLocal) {
+        setNoteTopics(JSON.parse(storedLocal));
+      }
+    }
+  };
+
+  const subjectNotebooks = useMemo<SubjectNotebook[]>(() => {
+    const SUBJECT_ORDER: SubjectNotebook['subject'][] = [
+      'English',
+      'Mathematics',
+      'General Knowledge',
+      'Pakistan Studies',
+      'Computer Science',
+      'Islamiat',
+    ];
+
+    const SUBJECT_DETAILS: Record<SubjectNotebook['subject'], { iconName: string; description: string }> = {
+      'English': {
+        iconName: 'BookOpen',
+        description: 'Master prepositions, conditional sentences, active-passive voice, and high-frequency idioms tested in competitive tests.',
+      },
+      'Mathematics': {
+        iconName: 'Calculator',
+        description: 'Quick formula lookup sheets and mental calculation methods for fast-paced competitive math screening.',
+      },
+      'General Knowledge': {
+        iconName: 'Globe',
+        description: 'Syllabus notes regarding International Organizations, world geography, straits, and standard sovereign currencies.',
+      },
+      'Pakistan Studies': {
+        iconName: 'Map',
+        description: 'Chronological pre-partition freedom struggles, geographies, constitutional histories, and military/treaty timelines.',
+      },
+      'Computer Science': {
+        iconName: 'Cpu',
+        description: 'Review core concepts in database management systems, data structures, and OSI networking models.',
+      },
+      'Islamiat': {
+        iconName: 'BookOpen',
+        description: 'Islamic history, pillars of Islam, Quranic revelations, and life of Prophet Muhammad (PBUH) tested in competitive exams.',
+      },
+    };
+
+    return SUBJECT_ORDER.map((subject) => {
+      const details = SUBJECT_DETAILS[subject];
+      const topics = noteTopics.filter((t) => t.subject === subject);
+      return {
+        subject,
+        iconName: details.iconName,
+        description: details.description,
+        topics,
+      };
+    });
+  }, [noteTopics]);
+
   const refreshProfile = async () => {
     if (user) {
       await fetchUserProfile(user.id);
@@ -238,6 +312,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         // Fetch fresh words from DB in background
         loadVocabData();
+
+        // Notes loading
+        const storedNotes = await AsyncStorage.getItem('smart_prep_notes');
+        if (storedNotes) {
+          setNoteTopics(JSON.parse(storedNotes));
+        }
+        // Fetch fresh notes from DB in background
+        loadNotesData();
 
         // Stats loading
         const storedStats = await AsyncStorage.getItem('smart_prep_stats');
@@ -609,6 +691,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         mcqs,
         vocab,
+        noteTopics,
+        subjectNotebooks,
         stats,
         currentTheme,
         toggleTheme,

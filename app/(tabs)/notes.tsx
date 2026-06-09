@@ -10,7 +10,7 @@ import {
 import { Text } from '../../src/components/common';
 import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SUBJECT_NOTEBOOKS, NoteTopic, SubjectNotebook } from '../../src/data/notesData';
+import { NoteTopic, SubjectNotebook } from '../../src/data/notesData';
 import { useApp } from '../../src/context/AppContext';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
@@ -36,8 +36,9 @@ import {
 } from 'lucide-react-native';
 
 export default function NotesScreen() {
-  const { currentTheme } = useApp();
+  const { currentTheme, subjectNotebooks } = useApp();
   const isDark = currentTheme === 'dark';
+  const SUBJECT_NOTEBOOKS = subjectNotebooks;
 
   const [activeSubject, setActiveSubject] = useState<SubjectNotebook['subject']>('English');
   const [searchQuery, setSearchQuery] = useState('');
@@ -149,7 +150,7 @@ export default function NotesScreen() {
 
   const totalTopicsCount = useMemo(() => {
     return SUBJECT_NOTEBOOKS.reduce((acc, current) => acc + current.topics.length, 0);
-  }, []);
+  }, [SUBJECT_NOTEBOOKS]);
 
   const overallMasteryPercentage = useMemo(() => {
     if (totalTopicsCount === 0) return 0;
@@ -158,7 +159,7 @@ export default function NotesScreen() {
 
   const activeNotebook = useMemo(() => {
     return SUBJECT_NOTEBOOKS.find((n) => n.subject === activeSubject);
-  }, [activeSubject]);
+  }, [activeSubject, SUBJECT_NOTEBOOKS]);
 
   const filteredTopics = useMemo(() => {
     if (!activeNotebook) return [];
@@ -196,7 +197,7 @@ export default function NotesScreen() {
       });
     });
     return results;
-  }, [searchQuery, filterEnabled, examFocus]);
+  }, [searchQuery, filterEnabled, examFocus, SUBJECT_NOTEBOOKS]);
 
   const getSubjectIcon = (sub: SubjectNotebook['subject'], color: string, size: number = 18) => {
     switch (sub) {

@@ -36,7 +36,6 @@ import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 import { triggerWebDownload } from '../../src/lib/wallpaperUtils';
-import { SUBJECT_NOTEBOOKS } from '../../src/data/notesData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAnalytics } from '../../src/hooks/useAnalytics';
 import { useRecommendations } from '../../src/hooks/useRecommendations';
@@ -144,7 +143,10 @@ export default function DashboardScreen() {
     profile,
     isNewDayDetected,
     setIsNewDayDetected,
+    subjectNotebooks,
   } = useApp();
+
+  const SUBJECT_NOTEBOOKS = subjectNotebooks;
 
   const isDark = currentTheme === 'dark';
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -223,7 +225,7 @@ export default function DashboardScreen() {
     if (allTopics.length === 0) return null;
     const idx = daySeed % allTopics.length;
     return allTopics[idx];
-  }, [daySeed, examFocus]);
+  }, [daySeed, examFocus, SUBJECT_NOTEBOOKS]);
 
   // Compute progress for each subject
   const subjectProgress = useMemo(() => {
@@ -237,7 +239,7 @@ export default function DashboardScreen() {
       progress[sub] = { completed, total, percent };
     });
     return progress;
-  }, [completedTopicIds]);
+  }, [completedTopicIds, SUBJECT_NOTEBOOKS]);
 
   const colors = {
     bg: isDark ? '#0E1117' : '#f9fafb',
