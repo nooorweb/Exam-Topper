@@ -27,12 +27,18 @@ export const QuizService = {
   saveAttempt: async (userId: string, session: QuizSession): Promise<string> => {
     const scorePercent = (session.score / session.totalQuestions) * 100;
 
-    // 1. Insert quiz attempt
+    const answersSummary = session.answers.map((ans) => ({
+      m: isUuid(ans.mcqId) ? ans.mcqId.slice(0, 8) : ans.mcqId,
+      s: ans.selectedOption,
+      c: ans.correctOption,
+    }));
+
+    // 1. Insert quiz attempt with JSONB answers summary
     const { data: attempt, error } = await supabase
       .from('quiz_attempts')
       .insert({
         user_id: userId,
-        subject: session.category,        // new schema uses subject
+        subject: session.category,
         started_at: new Date(
           new Date(session.date).getTime() - session.timeSpent * 1000
         ).toISOString(),
@@ -41,45 +47,28 @@ export const QuizService = {
         total_questions: session.totalQuestions,
         correct_count: session.score,
         score_percent: scorePercent,
+        answers_summary: answersSummary,
       })
       .select('id')
       .single();
 
     if (error || !attempt) throw error ?? new Error('Failed to insert quiz attempt');
 
-    // 2. Batch insert answers
-    const answerRows = session.answers.map((ans) => ({
-      attempt_id: attempt.id,
-      user_id: userId,
-      mcq_id: isUuid(ans.mcqId) ? ans.mcqId : null,
-      subject: session.category,          // new schema uses subject
-      selected_option: ans.selectedOption,
-      correct_option: ans.correctOption,
-      is_correct: ans.isCorrect,
-    }));
-
-    if (answerRows.length > 0) {
-      await supabase.from('attempt_answers').insert(answerRows);
-    }
-
-    // 3. Upsert weak_areas summary
+    // 2. Call upsert_weak_area RPC (accumulating statistics)
     const incorrect = session.answers.filter((a) => !a.isCorrect).length;
     const total = session.answers.length;
 
     if (total > 0) {
-      await supabase.from('weak_areas').upsert(
-        [
-          {
-            user_id: userId,
-            subject: session.category,    // new schema uses subject
-            incorrect_count: incorrect,
-            total_count: total,
-            accuracy_pct: ((total - incorrect) / total) * 100,
-            last_updated: new Date().toISOString(),
-          },
-        ],
-        { onConflict: 'user_id,subject', ignoreDuplicates: false }
-      );
+      const { error: rpcError } = await supabase.rpc('upsert_weak_area', {
+        p_user_id: userId,
+        p_subject: session.category,
+        p_incorrect: incorrect,
+        p_total: total,
+      });
+
+      if (rpcError) {
+        console.error('Error invoking upsert_weak_area RPC:', rpcError);
+      }
     }
 
     return attempt.id;

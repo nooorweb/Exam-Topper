@@ -38,7 +38,7 @@ Analyze this student's exam preparation progress:
 - Overall Correct Answers: ${stats.correctAnswersCount}
 - Overall Streak: ${stats.streak} days
 - Weak areas (based on error rates):
-${weakAreas.map(w => `  * ${w.category}: Accuracy ${Math.round(w.accuracy_pct)}% (${w.incorrect_count} incorrect responses)`).join('\n')}
+${weakAreas.map(w => `  * ${w.subject || w.category}: Accuracy ${Math.round(w.accuracy_pct)}% (${w.incorrect_count} incorrect responses)`).join('\n')}
 
 Provide a structured, encouraging study plan and recommendations. 
 Format your output cleanly in Markdown. Include:
@@ -287,9 +287,16 @@ You MUST respond ONLY with a valid JSON array of objects. Do not include markdow
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('API Key is missing');
 
+    const focus = await AsyncStorage.getItem('smart_prep_focus');
+    const examFocusText = focus 
+      ? `The user's target competitive exam/focus is "${focus}". Please prioritize vocabulary words that have historically appeared in ${focus} examinations (or similar ETEA, KPPSC, FPSC, NTS formats).`
+      : 'Generate a general mix of challenging verbal ability words suitable for Pakistani competitive exams (CSS, PMS, KPPSC, FPSC).';
+
     const prompt = `
-Act as an expert lexicographer and English verbal ability examiner for Pakistani civil services and competitive exams (CSS, PMS, KPPSC, FPSC).
-Generate exactly 30 challenging, high-yield vocabulary words that are highly relevant to these exams.
+Act as an expert lexicographer and English verbal ability examiner for Pakistani civil services and competitive exams (CSS, PMS, KPPSC, FPSC, ETEA, NTS).
+Generate exactly 30 challenging, high-yield vocabulary words that have actually appeared in recent competitive exams (CSS, PMS, FPSC, KPPSC, ETEA, NTS past papers from 2020 to 2026) or are highly anticipated based on recent examination trends.
+
+${examFocusText}
 
 You MUST respond ONLY with a valid JSON array of objects. Do not include markdown formatting, backticks, or any explanations outside the JSON array. The response must strictly match this structure:
 [
@@ -300,7 +307,7 @@ You MUST respond ONLY with a valid JSON array of objects. Do not include markdow
     "synonyms": ["synonym1", "synonym2", "synonym3", "synonym4"],
     "antonyms": ["antonym1", "antonym2", "antonym3", "antonym4"],
     "example": "A sentence demonstrating word usage in a civil service, governance, philosophy, or public administration context",
-    "category": "CSS Vocab" or "KPPSC Vocab" or "General Vocabulary"
+    "category": "CSS Vocab" or "KPPSC Vocab" or "ETEA Vocab" or "General Vocabulary"
   }
 ]
 `;

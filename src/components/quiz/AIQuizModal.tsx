@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,9 +9,10 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Sparkles, ChevronRight, ChevronLeft, Award, Globe, Edit, ShieldAlert, WifiOff, X } from 'lucide-react-native';
+import { Sparkles, ChevronRight, ChevronLeft, Award, Globe, Edit, ShieldAlert, WifiOff, X, Brain } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { GeminiService } from '../../services/gemini.service';
@@ -32,7 +33,41 @@ const SUBJECT_OPTIONS = [
   'Mixed',
 ];
 const QUESTIONS_OPTIONS = [15, 30, 40];
-const DIFFICULTY_OPTIONS = ['Easy', 'Medium', 'Hard', 'Mixed'];
+
+const JOB_SUGGESTIONS = [
+  'Computer Operator',
+  'Junior Clerk',
+  'Senior Clerk',
+  'Assistant Sub-Inspector (ASI)',
+  'Sub-Inspector (SI)',
+  'Assistant Director (AD)',
+  'Lecturer',
+  'Subject Specialist (SS)',
+  'Secondary School Teacher (SST)',
+  'Tehsildar',
+  'Naib Tehsildar',
+  'Accountant',
+  'Data Entry Operator',
+  'Assistant',
+  'Section Officer',
+  'Planning Officer',
+  'Research Officer',
+  'Inspector',
+  'Customs Inspector',
+  'Appraising Officer',
+  'Patwari',
+];
+
+const FUNNY_LOAD_MESSAGES = [
+  "Bribing Gemini with digital cookies...",
+  "Consulting the AI gods for high-yield questions...",
+  "Calculating how to make you sweat at 3:00 AM...",
+  "Formulating incorrect options that look deceptively correct...",
+  "Adding 10% more difficulty because you looked too confident...",
+  "Polishing the explanation paragraphs (using 100% organic pixels)...",
+  "Sweeping the virtual dust off the department job descriptions...",
+  "Gemini is typing... please act natural...",
+];
 
 interface AIQuizModalProps {
   visible: boolean;
@@ -50,15 +85,83 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
   // ─── Form States ───────────────────────────────────────────────────────────
   const [exam, setExam] = useState<string>('KPPSC');
   const [post, setPost] = useState<string>('');
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
   const [subject, setSubject] = useState<string[]>(['General Knowledge']);
   const [numQuestions, setNumQuestions] = useState<number>(15);
-  const [difficulty, setDifficulty] = useState<string>('Medium');
+  const [difficulty, setDifficulty] = useState<string>('Mixed (Medium & Hard)');
   const [language, setLanguage] = useState<string>('English');
+  const [generationProgress, setGenerationProgress] = useState<number>(0);
 
   // ─── Operational States ──────────────────────────────────────────────────
   const [loading, setLoading] = useState<boolean>(false);
   const [statusText, setStatusText] = useState<string>('Preparing...');
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  const [funnyMessage, setFunnyMessage] = useState<string>(FUNNY_LOAD_MESSAGES[0]);
+
+  // Animated values for funny bounce & spin loading animation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!loading) {
+      setFunnyMessage(FUNNY_LOAD_MESSAGES[0]);
+      rotateAnim.setValue(0);
+      bounceAnim.setValue(0);
+      return;
+    }
+
+    // Cycle funny messages
+    let idx = 0;
+    const msgInterval = setInterval(() => {
+      idx = (idx + 1) % FUNNY_LOAD_MESSAGES.length;
+      setFunnyMessage(FUNNY_LOAD_MESSAGES[idx]);
+    }, 2000);
+
+    // Spin animation
+    const spinLoop = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 1800,
+        useNativeDriver: true,
+      })
+    );
+
+    // Bounce animation
+    const bounceLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    spinLoop.start();
+    bounceLoop.start();
+
+    return () => {
+      clearInterval(msgInterval);
+      spinLoop.stop();
+      bounceLoop.stop();
+    };
+  }, [loading]);
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const bounce = bounceAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -20],
+  });
 
   // ─── Load Settings at Startup ─────────────────────────────────────────────
   useEffect(() => {
@@ -66,37 +169,47 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
 
     const loadInitialSettings = async () => {
       try {
+        const focus = await AsyncStorage.getItem('smart_prep_focus');
+        const activeFocus = focus || 'KPPSC & ETEA';
+
+        let mappedExam = 'KPPSC';
+        if (activeFocus.includes('CSS')) mappedExam = 'CSS';
+        else if (activeFocus.includes('FIA')) mappedExam = 'FPSC';
+        else if (activeFocus.includes('ETEA')) mappedExam = 'ETEA';
+        else if (activeFocus.includes('Punjab')) mappedExam = 'NTS';
+
         const lastSettings = await AsyncStorage.getItem('smart_prep_last_ai_quiz_settings');
         if (lastSettings) {
           const parsed = JSON.parse(lastSettings);
-          setExam(parsed.exam || 'KPPSC');
-          setPost(parsed.post || '');
-          if (Array.isArray(parsed.subject)) {
-            setSubject(parsed.subject.length > 0 ? parsed.subject : ['General Knowledge']);
-          } else if (typeof parsed.subject === 'string') {
-            setSubject([parsed.subject]);
-          } else {
-            setSubject(['General Knowledge']);
+          // Only use last settings if the focus matches the current global focus
+          if (parsed.focus === activeFocus) {
+            setExam(parsed.exam || mappedExam);
+            setPost(parsed.post || '');
+            if (Array.isArray(parsed.subject)) {
+              setSubject(parsed.subject.length > 0 ? parsed.subject : ['General Knowledge']);
+            } else if (typeof parsed.subject === 'string') {
+              setSubject([parsed.subject]);
+            } else {
+              setSubject(['General Knowledge']);
+            }
+            setNumQuestions(parsed.numQuestions || 15);
+            setDifficulty('Mixed (Medium & Hard)');
+            setLanguage('English');
+            setHasSavedSettings(true);
+            setStep(0); // Jump straight to confirmation step
+            return;
           }
-          setNumQuestions(parsed.numQuestions || 15);
-          setDifficulty(parsed.difficulty || 'Medium');
-          setLanguage('English');
-          setHasSavedSettings(true);
-          setStep(0); // Jump straight to confirmation step
-        } else {
-          // Pre-fill from user's general exam target focus
-          const focus = await AsyncStorage.getItem('smart_prep_focus');
-          if (focus) {
-            let mappedExam = 'KPPSC';
-            if (focus.includes('CSS')) mappedExam = 'CSS';
-            else if (focus.includes('FIA')) mappedExam = 'FPSC';
-            else if (focus.includes('ETEA')) mappedExam = 'ETEA';
-            else if (focus.includes('Punjab')) mappedExam = 'NTS';
-            setExam(mappedExam);
-          }
-          setHasSavedSettings(false);
-          setStep(1);
         }
+
+        // Prefill from current focus if focus changed or no saved settings
+        setExam(mappedExam);
+        setPost('');
+        setSubject(['General Knowledge']);
+        setNumQuestions(15);
+        setDifficulty('Mixed (Medium & Hard)');
+        setLanguage('English');
+        setHasSavedSettings(false);
+        setStep(1);
       } catch (err) {
         console.error('Error loading AI quiz initial settings', err);
         setStep(1);
@@ -146,11 +259,33 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
     return [];
   };
 
+  const simulateProgress = (target: number, speed = 30) => {
+    return new Promise<void>((resolve) => {
+      const interval = setInterval(() => {
+        if (!visible) {
+          clearInterval(interval);
+          resolve();
+          return;
+        }
+        setGenerationProgress((prev) => {
+          if (prev >= target) {
+            clearInterval(interval);
+            resolve();
+            return target;
+          }
+          return prev + 1;
+        });
+      }, speed);
+    });
+  };
+
   // ─── AI Quiz Generation ────────────────────────────────────────────────────
   const generateQuiz = async () => {
     setLoading(true);
     setErrorText(null);
+    setGenerationProgress(5);
     setStatusText('Checking AI configurations...');
+    await simulateProgress(15, 10);
 
     try {
       // Check limit again
@@ -167,6 +302,7 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
       if (count <= 0) {
         Alert.alert('Limit Reached', 'You have used all 3 AI quiz generations for today. Please try again tomorrow.');
         setLoading(false);
+        setGenerationProgress(0);
         return;
       }
 
@@ -181,18 +317,23 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
           ]
         );
         setLoading(false);
+        setGenerationProgress(0);
         return;
       }
 
       // Save parameters as last used settings in local storage
-      const currentSettings = { exam, post, subject, numQuestions, difficulty, language };
+      const focus = await AsyncStorage.getItem('smart_prep_focus');
+      const currentSettings = { exam, post, subject, numQuestions, difficulty, language, focus: focus || 'KPPSC & ETEA' };
       await AsyncStorage.setItem('smart_prep_last_ai_quiz_settings', JSON.stringify(currentSettings));
 
       setStatusText('Retrieving focus points...');
+      await simulateProgress(35, 15);
       const weakTopics = getWeakTopics();
       const joinedSubjects = subject.join(', ');
 
       setStatusText(`Generating ${numQuestions} custom questions...`);
+      const slowProgress = simulateProgress(80, 100);
+
       const questions = await GeminiService.generateConversationalQuiz({
         exam,
         post: post.trim() || undefined,
@@ -203,11 +344,15 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
         weakTopics: weakTopics.length > 0 ? weakTopics : undefined,
       });
 
+      await slowProgress;
       setStatusText('Setting up your session...');
+      await simulateProgress(95, 10);
       await AsyncStorage.setItem(AI_QUIZ_TEMP_KEY, JSON.stringify(questions));
 
       // Decrement the count
       await AsyncStorage.setItem('smart_prep_ai_quiz_count', String(count - 1));
+
+      await simulateProgress(100, 5);
 
       setLoading(false);
       onClose();
@@ -232,6 +377,13 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
       setLoading(false);
     }
   };
+
+  const filteredSuggestions = post.trim()
+    ? JOB_SUGGESTIONS.filter((job) =>
+        job.toLowerCase().includes(post.toLowerCase()) &&
+        job.toLowerCase() !== post.toLowerCase()
+      )
+    : [];
 
   // ─── Rendering Helpers ─────────────────────────────────────────────────────
   const renderHeader = () => (
@@ -281,9 +433,41 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
           {/* ─── LOADING STATE ─── */}
           {loading && (
             <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
+              <Animated.View
+                style={{
+                  transform: [
+                    { translateY: bounce },
+                    { rotate: rotation }
+                  ],
+                  marginBottom: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Brain size={48} color={colors.primary} />
+              </Animated.View>
               <Text style={[styles.statusMainText, { color: colors.text }]}>Generating AI Quiz</Text>
-              <Text style={[styles.statusSubText, { color: colors.textMuted }]}>{statusText}</Text>
+              
+              {/* Progress Bar */}
+              <View style={[styles.loadingBarBg, { backgroundColor: isDark ? '#1c1c1f' : '#e5e7eb' }]}>
+                <View 
+                  style={[
+                    styles.loadingBarFill, 
+                    { 
+                      backgroundColor: colors.primary, 
+                      width: `${generationProgress}%` 
+                    }
+                  ]} 
+                />
+              </View>
+              
+              <Text style={[styles.statusPercentText, { color: colors.primary }]}>{generationProgress}%</Text>
+              <Text style={[styles.statusSubText, { color: colors.textMuted, fontStyle: 'italic', textAlign: 'center', marginTop: 4, paddingHorizontal: 10 }]}>
+                {funnyMessage}
+              </Text>
+              <Text style={[styles.statusSubText, { color: colors.primary, fontSize: 11, marginTop: 10, fontWeight: '700' }]}>
+                {statusText}
+              </Text>
             </View>
           )}
 
@@ -403,22 +587,63 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
               <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
                 Department / Job Post Category (Optional)
               </Text>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  {
-                    color: colors.text,
-                    borderColor: colors.border,
-                    backgroundColor: isDark ? '#18181f' : '#f9fafb',
-                  },
-                ]}
-                placeholder="e.g. Computer Operator, ASI, Junior Clerk"
-                placeholderTextColor={isDark ? '#4b5563' : '#a1a1aa'}
-                value={post}
-                onChangeText={setPost}
-              />
+              <View style={{ position: 'relative', zIndex: 10 }}>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      color: colors.text,
+                      borderColor: colors.border,
+                      backgroundColor: isDark ? '#18181f' : '#f9fafb',
+                      marginBottom: 0,
+                    },
+                  ]}
+                  placeholder="e.g. Computer Operator, ASI, Junior Clerk"
+                  placeholderTextColor={isDark ? '#4b5563' : '#a1a1aa'}
+                  value={post}
+                  onChangeText={(val) => {
+                    setPost(val);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                />
 
-              <View style={styles.actionRowSingle}>
+                {showSuggestions && filteredSuggestions.length > 0 && (
+                  <View
+                    style={[
+                      styles.suggestionsContainer,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: isDark ? '#1c1c1f' : '#ffffff',
+                      },
+                    ]}
+                  >
+                    <ScrollView
+                      style={styles.suggestionsScroll}
+                      keyboardShouldPersistTaps="always"
+                      nestedScrollEnabled
+                    >
+                      {filteredSuggestions.map((job) => (
+                        <TouchableOpacity
+                          key={job}
+                          style={[styles.suggestionItem, { borderBottomColor: colors.border }]}
+                          onPress={() => {
+                            setPost(job);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          <Text style={{ color: colors.text, fontSize: 13 }}>{job}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.actionRow}>
                 <TouchableOpacity
                   onPress={() => setStep(2)}
                   style={[styles.btnPrimary, { backgroundColor: colors.primary }]}
@@ -506,12 +731,12 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
             </View>
           )}
 
-          {/* ─── STEP 3: QUANTITY & DIFFICULTY ─── */}
+          {/* ─── STEP 3: QUANTITY ─── */}
           {!loading && !errorText && step === 3 && (
             <View style={styles.modalContent}>
               {renderProgress()}
               <Text style={[styles.stepQuestion, { color: colors.text }]}>
-                Finally, set questions count & difficulty
+                Finally, set questions count
               </Text>
 
               <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Number of Questions</Text>
@@ -541,39 +766,6 @@ export default function AIQuizModal({ visible, onClose }: AIQuizModalProps) {
                         ]}
                       >
                         {opt} Qs
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Difficulty Level</Text>
-              <View style={styles.chipGrid}>
-                {DIFFICULTY_OPTIONS.map((opt) => {
-                  const isSelected = difficulty === opt;
-                  return (
-                    <TouchableOpacity
-                      key={opt}
-                      onPress={() => setDifficulty(opt)}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? colors.primary : colors.chipBg,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                          flex: 1,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected ? '#fff' : colors.text,
-                            fontWeight: isSelected ? 'bold' : 'normal',
-                          },
-                        ]}
-                      >
-                        {opt}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -799,5 +991,45 @@ const styles = StyleSheet.create({
   errorActions: {
     width: '100%',
     gap: 8,
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 46,
+    left: 0,
+    right: 0,
+    borderWidth: 1,
+    borderRadius: 12,
+    maxHeight: 150,
+    zIndex: 999,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  suggestionsScroll: {
+    maxHeight: 150,
+  },
+  suggestionItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  loadingBarBg: {
+    width: '80%',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  loadingBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  statusPercentText: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
   },
 });

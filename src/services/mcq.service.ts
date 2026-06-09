@@ -1,79 +1,102 @@
 import { supabase } from '../lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MCQ } from '../types';
+import { CacheService } from './cache.service';
+import { DEFAULT_MCQS } from '../data/defaultData';
 
-const CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
-const CACHE_KEY = (category: string) => `smart_prep_mcq_cache_${category}`;
+const SUBJECT_TABLE_MAP: Record<string, string> = {
+  'English': 'english_mcqs',
+  'Pakistan Studies': 'pakistan_studies_mcqs',
+  'General Knowledge': 'general_knowledge_mcqs',
+  'Computer Science': 'computer_science_mcqs',
+  'Mathematics': 'mathematics_mcqs',
+  'Islamiat': 'islamiat_mcqs',
+};
+
+const getTableName = (subject: string): string => {
+  return SUBJECT_TABLE_MAP[subject] || 'english_mcqs';
+};
 
 export const MCQService = {
   /**
-   * Fetch MCQs by category with 6-hour AsyncStorage cache.
-   * On cache hit: zero Supabase reads.
-   * On cache miss: paginated Supabase query.
+   * Fetch MCQs for a subject from local cache or Supabase.
+   * If difficulty is specified, it will fetch from cache or query matching rows.
+   * Falls back to DEFAULT_MCQS for offline stability.
    */
-  fetchByCategory: async (
-    category: string,
-    page = 0,
-    pageSize = 50
+  fetchQuizQuestions: async (
+    subject: string,
+    difficulty: string,
+    limit: number
   ): Promise<MCQ[]> => {
-    // 1. Check cache first
-    const cacheRaw = await AsyncStorage.getItem(CACHE_KEY(category));
-    if (cacheRaw) {
-      const cache = JSON.parse(cacheRaw);
-      const age = Date.now() - cache.timestamp;
-      if (age < CACHE_TTL_MS && cache.page === page) {
-        return cache.data as MCQ[]; // Serve from cache — 0 Supabase reads
+    try {
+      const normalizedDifficulty = difficulty === 'All' ? 'medium' : difficulty.toLowerCase();
+      
+      // 1. Try local cache first
+      const cached = await CacheService.getSubjectMCQs(subject, normalizedDifficulty);
+      if (cached && cached.length >= limit) {
+        // Shuffle and return requested slice
+        return [...cached].sort(() => 0.5 - Math.random()).slice(0, limit);
       }
+
+      // 2. Query corresponding table in Supabase
+      const tableName = getTableName(subject);
+      
+      let query = supabase
+        .from(tableName)
+        .select('id, question, options, correct_answer, explanation, subcategory, exam_type, difficulty, importance, is_repeated')
+        .eq('is_public', true);
+
+      // Apply difficulty filter if it's not "All"
+      if (difficulty !== 'All') {
+        query = query.eq('difficulty', normalizedDifficulty);
+      }
+
+      // Fetch 3 times the limit so we can shuffle nicely in memory
+      const { data, error } = await query
+        .limit(limit * 3)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const mcqs: MCQ[] = data.map((row) => ({
+          id: row.id,
+          question: row.question,
+          options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
+          correctAnswer: row.correct_answer,
+          explanation: row.explanation ?? '',
+          category: subject as MCQ['category'],
+          subcategory: row.subcategory ?? undefined,
+          examType: row.exam_type ?? undefined,
+          importance: row.importance ?? undefined,
+          isRepeated: row.is_repeated ?? false,
+        }));
+
+        // Update local cache
+        await CacheService.setSubjectMCQs(subject, normalizedDifficulty, mcqs);
+
+        return [...mcqs].sort(() => 0.5 - Math.random()).slice(0, limit);
+      }
+    } catch (error) {
+      console.warn(`MCQService: Failed to fetch from Supabase. Falling back to local/default.`, error);
     }
 
-    // 2. Fetch from Supabase
-    const { data, error } = await supabase
-      .from('mcqs')
-      .select(
-        'id, question, options, correct_answer, explanation, category, subcategory, exam_type, difficulty, importance, is_repeated'
-      )
-      .eq('category', category)
-      .eq('is_public', true)
-      .order('importance', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (error) throw error;
-
-    // 3. Normalize DB snake_case → app camelCase
-    const mcqs: MCQ[] = (data ?? []).map((row) => ({
-      id: row.id,
-      question: row.question,
-      options: row.options,
-      correctAnswer: row.correct_answer,
-      explanation: row.explanation ?? '',
-      category: row.category as MCQ['category'],
-      subcategory: row.subcategory ?? undefined,
-      examType: row.exam_type ?? undefined,
-      importance: row.importance ?? undefined,
-      isRepeated: row.is_repeated ?? false,
-    }));
-
-    // 4. Store in cache
-    await AsyncStorage.setItem(
-      CACHE_KEY(category),
-      JSON.stringify({ data: mcqs, timestamp: Date.now(), page })
-    );
-
-    return mcqs;
+    // 3. Fallback: Filter from DEFAULT_MCQS in memory
+    let fallbackPool = DEFAULT_MCQS.filter(m => m.category === subject);
+    if (difficulty !== 'All') {
+      const targetDiff = difficulty.toLowerCase();
+      fallbackPool = fallbackPool.filter(m => (m.importance || 'medium') === targetDiff);
+    }
+    return fallbackPool.sort(() => 0.5 - Math.random()).slice(0, limit);
   },
 
-  /** Invalidate cache for one category or all MCQ caches */
-  invalidateCache: async (category?: string): Promise<void> => {
-    if (category) {
-      await AsyncStorage.removeItem(CACHE_KEY(category));
+  /**
+   * Invalidate local cache for one subject or all subjects.
+   */
+  invalidateCache: async (subject?: string): Promise<void> => {
+    if (subject) {
+      await CacheService.invalidateSubject(subject);
     } else {
-      const keys = await AsyncStorage.getAllKeys();
-      const mcqKeys = keys.filter((k) =>
-        k.startsWith('smart_prep_mcq_cache_')
-      );
-      if (mcqKeys.length > 0) {
-        await AsyncStorage.multiRemove(mcqKeys);
-      }
+      await CacheService.clearAll();
     }
-  },
+  }
 };

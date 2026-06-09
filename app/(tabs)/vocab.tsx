@@ -309,7 +309,7 @@ export default function VocabScreen() {
   const goTo = (idx: number) => {
     const clamped = Math.max(0, Math.min(idx, words.length - 1));
     setCurrentIdx(clamped);
-    sliderRef.current?.scrollToIndex({ index: clamped, animated: true, viewPosition: 0.5 });
+    sliderRef.current?.scrollToIndex({ index: clamped, animated: true });
   };
 
   const handleTTS = async () => {
@@ -328,7 +328,7 @@ export default function VocabScreen() {
 
   const onScrollEnd = (e: any) => {
     const offset = e.nativeEvent.contentOffset.x;
-    const idx = Math.round(offset / (cardWidth + cardGap));
+    const idx = Math.round(offset / width);
     setCurrentIdx(idx);
   };
 
@@ -407,24 +407,24 @@ export default function VocabScreen() {
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={cardWidth + cardGap}
+            pagingEnabled
             decelerationRate="fast"
-            snapToAlignment="center"
             onMomentumScrollEnd={onScrollEnd}
             renderItem={({ item }) => (
-              <WordCard
-                word={item}
-                isDark={isDark}
-                isBookmarked={item.isBookmarked}
-                onBookmark={() => bookmarkWord(item.id)}
-                cardWidth={cardWidth}
-              />
+              <View style={{ width, paddingHorizontal: 16, justifyContent: 'center' }}>
+                <WordCard
+                  word={item}
+                  isDark={isDark}
+                  isBookmarked={item.isBookmarked}
+                  onBookmark={() => bookmarkWord(item.id)}
+                  cardWidth={width - 32}
+                />
+              </View>
             )}
             style={s.slider}
-            contentContainerStyle={{ paddingHorizontal: 24, gap: cardGap }}
             getItemLayout={(_, index) => ({
-              length: cardWidth + cardGap,
-              offset: (cardWidth + cardGap) * index,
+              length: width,
+              offset: width * index,
               index,
             })}
           />

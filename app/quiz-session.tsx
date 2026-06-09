@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text } from '../src/components/common';
 import { useApp } from '../src/context/AppContext';
 import { MCQ, QuizSession } from '../src/types';
+import { MCQService } from '../src/services/mcq.service';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   Award,
@@ -44,6 +45,55 @@ interface AnswerRecord {
   category: string;
 }
 
+const matchesFocus = (mcq: MCQ, focus: string): boolean => {
+  const examTypeLower = (mcq.examType || '').toLowerCase();
+  
+  if (focus === 'KPPSC & ETEA') {
+    return examTypeLower.includes('kppsc') || examTypeLower.includes('etea');
+  }
+  if (focus === 'FIA Inspector') {
+    return examTypeLower.includes('fia') || examTypeLower.includes('fpsc');
+  }
+  if (focus === 'CSS Descriptive') {
+    return examTypeLower.includes('css') || examTypeLower.includes('fpsc');
+  }
+  if (focus === 'All Punjab/Sindh Boards') {
+    return examTypeLower.includes('pms') || examTypeLower.includes('nts') || examTypeLower.includes('board');
+  }
+  return true;
+};
+
+const getCleanBadgeText = (examType: string | undefined, userFocus: string): string | null => {
+  if (!examType) return null;
+  const examLower = examType.toLowerCase();
+  
+  if (userFocus === 'KPPSC & ETEA') {
+    if (examLower.includes('kppsc') || examLower.includes('etea')) {
+      return examType;
+    }
+    return 'KPPSC & ETEA Prep';
+  }
+  if (userFocus === 'FIA Inspector') {
+    if (examLower.includes('fia') || examLower.includes('fpsc')) {
+      return examType;
+    }
+    return 'FIA Inspector Prep';
+  }
+  if (userFocus === 'CSS Descriptive') {
+    if (examLower.includes('css') || examLower.includes('fpsc')) {
+      return examType;
+    }
+    return 'CSS Prep';
+  }
+  if (userFocus === 'All Punjab/Sindh Boards') {
+    if (examLower.includes('pms') || examLower.includes('nts') || examLower.includes('board')) {
+      return examType;
+    }
+    return 'PMS Prep';
+  }
+  return examType;
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function QuizSessionScreen() {
@@ -60,29 +110,83 @@ export default function QuizSessionScreen() {
   const isAiMode = params.aiQuizMode === 'true';
   const aiCategory = (params.aiCategory as string) || 'AI Mock';
 
-  const [aiMCQs, setAiMCQs] = useState<MCQ[]>([]);
-  const [aiLoading, setAiLoading] = useState(isAiMode);
+  const [questions, setQuestions] = useState<MCQ[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userFocus, setUserFocus] = useState<string>('KPPSC & ETEA');
 
-  // ── Load AI MCQs from temp storage (only in AI mode) ────────────────────
+  // ── Load MCQs asynchronously (from database/cache or local storage) ────────
   useEffect(() => {
-    if (!isAiMode) return;
-    const loadAiMCQs = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(AI_QUIZ_TEMP_KEY);
-        if (raw) {
-          const parsed: MCQ[] = JSON.parse(raw);
-          setAiMCQs(parsed);
-          // Clear temp key so it doesn't persist or contaminate anything
-          await AsyncStorage.removeItem(AI_QUIZ_TEMP_KEY);
+    if (isAiMode) {
+      const loadAiMCQs = async () => {
+        const startTime = Date.now();
+        const focus = await AsyncStorage.getItem('smart_prep_focus');
+        if (focus) {
+          setUserFocus(focus);
         }
-      } catch (e) {
-        console.error('Failed to load AI quiz from temp storage', e);
-      } finally {
-        setAiLoading(false);
-      }
-    };
-    loadAiMCQs();
-  }, []);
+        try {
+          const raw = await AsyncStorage.getItem(AI_QUIZ_TEMP_KEY);
+          if (raw) {
+            const parsed: MCQ[] = JSON.parse(raw);
+            setQuestions(parsed);
+            // Clear temp key so it doesn't persist or contaminate anything
+            await AsyncStorage.removeItem(AI_QUIZ_TEMP_KEY);
+          }
+        } catch (e) {
+          console.error('Failed to load AI quiz from temp storage', e);
+        } finally {
+          const elapsed = Date.now() - startTime;
+          const delay = Math.max(0, 1200 - elapsed);
+          setTimeout(() => {
+            setLoading(false);
+          }, delay);
+        }
+      };
+      loadAiMCQs();
+    } else {
+      // Standard mode: Synchronous, fully offline filtering of local pool with exam focus priority
+      const loadStandardMCQs = async () => {
+        const focus = await AsyncStorage.getItem('smart_prep_focus');
+        const activeFocus = focus || 'KPPSC & ETEA';
+        setUserFocus(activeFocus);
+
+        const customIds = params.customMCQIds as string;
+        let selectedQuestions: MCQ[] = [];
+        if (customIds) {
+          const ids = customIds.split(',');
+          selectedQuestions = mcqs.filter(m => ids.includes(m.id));
+        } else {
+          let pool = [...mcqs];
+          if (!isMixed) pool = pool.filter(m => m.category === categoryParam);
+
+          // Apply user's exam focus filter to avoid the "mix pickle"
+          let focusPool = pool.filter(m => matchesFocus(m, activeFocus));
+          if (focusPool.length === 0) focusPool = pool;
+
+          let filteredPool = [...focusPool];
+          if (difficultyParam === 'Conceptual') {
+            const conceptual = filteredPool.filter(m => m.importance === 'medium' || m.importance === 'low');
+            if (conceptual.length > 0) filteredPool = conceptual;
+          } else if (difficultyParam === 'High Repeats') {
+            const repeats = filteredPool.filter(m => m.isRepeated === true);
+            if (repeats.length > 0) filteredPool = repeats;
+          }
+
+          selectedQuestions = filteredPool.sort(() => 0.5 - Math.random()).slice(0, questionsLimit);
+
+          // If not enough questions match, fill with other ones from the category
+          if (selectedQuestions.length < questionsLimit) {
+            const remaining = questionsLimit - selectedQuestions.length;
+            const selectedIds = new Set(selectedQuestions.map(q => q.id));
+            const extra = pool.filter(q => !selectedIds.has(q.id)).sort(() => 0.5 - Math.random()).slice(0, remaining);
+            selectedQuestions = [...selectedQuestions, ...extra];
+          }
+        }
+        setQuestions(selectedQuestions);
+        setLoading(false);
+      };
+      loadStandardMCQs();
+    }
+  }, [isAiMode, categoryParam, isMixed, questionsLimit, difficultyParam, params.customMCQIds, mcqs]);
 
   // ── Theme colours ────────────────────────────────────────────────────────
   const C = {
@@ -103,22 +207,7 @@ export default function QuizSessionScreen() {
   };
 
   // ── Filter & shuffle session MCQs ────────────────────────────────────────
-  // AI mode uses questions from temp storage; standard mode uses the local MCQ pool
-  const sessionMCQs = useMemo<MCQ[]>(() => {
-    if (isAiMode) return aiMCQs; // populated from temp AsyncStorage
-    const customIds = params.customMCQIds as string;
-    if (customIds) {
-      const ids = customIds.split(',');
-      return mcqs.filter(m => ids.includes(m.id));
-    }
-    let pool = [...mcqs];
-    if (!isMixed) pool = pool.filter(m => m.category === categoryParam);
-    if (difficultyParam === 'Conceptual')
-      pool = pool.filter(m => m.importance === 'medium' || m.importance === 'low');
-    else if (difficultyParam === 'High Repeats')
-      pool = pool.filter(m => m.isRepeated === true);
-    return pool.sort(() => 0.5 - Math.random()).slice(0, questionsLimit);
-  }, [isAiMode, aiMCQs, mcqs, categoryParam, isMixed, questionsLimit, difficultyParam, params.customMCQIds]);
+  const sessionMCQs = questions;
 
   // ── Quiz state ───────────────────────────────────────────────────────────
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -232,15 +321,19 @@ export default function QuizSessionScreen() {
     }, 650);
   };
 
-  // ─── AI loading state ───────────────────────────────────────────────────
-  if (aiLoading) {
+  // ─── Loading state ──────────────────────────────────────────────────────
+  if (loading) {
     return (
       <SafeAreaView style={[s.fill, { backgroundColor: C.bg }]}>
         <View style={s.emptyBox}>
           <Sparkles size={44} color={C.success} />
-          <Text style={[s.emptyTitle, { color: C.text }]}>Loading AI Quiz…</Text>
+          <Text style={[s.emptyTitle, { color: C.text }]}>
+            {isAiMode ? 'Loading AI Quiz…' : 'Loading Quiz…'}
+          </Text>
           <Text style={[s.emptyBody, { color: C.textMuted }]}>
-            Preparing your Gemini-generated questions. This only takes a moment.
+            {isAiMode
+              ? 'Preparing your Gemini-generated questions. This only takes a moment.'
+              : 'Fetching optimized practice questions from database/cache.'}
           </Text>
         </View>
       </SafeAreaView>
@@ -381,9 +474,11 @@ export default function QuizSessionScreen() {
                   <View style={[s.qNumBadge, { backgroundColor: ans.isCorrect ? C.successBg : C.dangerBg }]}>
                     <Text style={[s.qNumText, { color: ans.isCorrect ? C.success : C.danger }]}>Q{qNum}</Text>
                   </View>
-                  {ans.examType && (
+                  {getCleanBadgeText(ans.examType, userFocus) && (
                     <View style={[s.examBadge, { backgroundColor: C.primaryBg }]}>
-                      <Text style={[s.examBadgeText, { color: C.primary }]}>{ans.examType}</Text>
+                      <Text style={[s.examBadgeText, { color: C.primary }]}>
+                        {getCleanBadgeText(ans.examType, userFocus)}
+                      </Text>
                     </View>
                   )}
                   {ans.isCorrect
@@ -516,9 +611,11 @@ export default function QuizSessionScreen() {
           <Text style={[s.categoryLabel, { color: C.primary }]}>
             {currentMCQ.category.toUpperCase()}
           </Text>
-          {currentMCQ.examType && (
+          {getCleanBadgeText(currentMCQ.examType, userFocus) && (
             <View style={[s.examBadge, { backgroundColor: C.primaryBg }]}>
-              <Text style={[s.examBadgeText, { color: C.primary }]}>{currentMCQ.examType}</Text>
+              <Text style={[s.examBadgeText, { color: C.primary }]}>
+                {getCleanBadgeText(currentMCQ.examType, userFocus)}
+              </Text>
             </View>
           )}
           {currentMCQ.isRepeated && (

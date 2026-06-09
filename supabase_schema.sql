@@ -195,30 +195,17 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
   correct_count    SMALLINT NOT NULL,
   score_percent    NUMERIC(5,2) NOT NULL,
   difficulty       TEXT,
+  answers_summary  JSONB DEFAULT '[]', -- [{"m":"<mcq_id>","s":1,"c":1,"t":5}]
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_attempts_user     ON public.quiz_attempts(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_attempts_subject  ON public.quiz_attempts(user_id, subject);
+CREATE INDEX IF NOT EXISTS idx_attempts_user_date ON public.quiz_attempts(user_id, completed_at DESC);
 
 -- ─────────────────────────────────────────────────────────────
--- 4. attempt_answers (per-question detail)
+-- 4. [DEPRECATED] attempt_answers (removed for storage optimization)
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.attempt_answers (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  attempt_id      UUID NOT NULL REFERENCES public.quiz_attempts(id) ON DELETE CASCADE,
-  user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  mcq_id          UUID,            -- UUID of the MCQ from subject table
-  subject         TEXT NOT NULL,   -- which subject table the mcq belongs to
-  selected_option SMALLINT,
-  correct_option  SMALLINT NOT NULL,
-  is_correct      BOOLEAN NOT NULL,
-  time_spent_secs INT DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_answers_user_wrong ON public.attempt_answers(user_id, subject)
-  WHERE is_correct = FALSE;
-CREATE INDEX IF NOT EXISTS idx_answers_attempt ON public.attempt_answers(attempt_id);
 
 -- ─────────────────────────────────────────────────────────────
 -- 5. weak_areas (pre-aggregated summary)
@@ -304,7 +291,6 @@ CREATE INDEX IF NOT EXISTS idx_note_topics_is_public ON public.note_topics(is_pu
 -- ─────────────────────────────────────────────────────────────
 ALTER TABLE public.user_profiles          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quiz_attempts          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.attempt_answers        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.weak_areas             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_streaks          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vocab_words            ENABLE ROW LEVEL SECURITY;
@@ -326,11 +312,6 @@ CREATE POLICY "Users own their profile" ON public.user_profiles
 -- quiz_attempts: own data only
 DROP POLICY IF EXISTS "Users own their attempts" ON public.quiz_attempts;
 CREATE POLICY "Users own their attempts" ON public.quiz_attempts
-  FOR ALL USING (auth.uid() = user_id);
-
--- attempt_answers: own data only
-DROP POLICY IF EXISTS "Users own their answers" ON public.attempt_answers;
-CREATE POLICY "Users own their answers" ON public.attempt_answers
   FOR ALL USING (auth.uid() = user_id);
 
 -- weak_areas: own data only
@@ -431,9 +412,45 @@ END;
 $$;
 
 -- ─────────────────────────────────────────────────────────────
+-- 12. Accumulating weak areas RPC
+-- ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.upsert_weak_area(
+  p_user_id UUID, p_subject TEXT, p_incorrect INT, p_total INT
+) RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.weak_areas (user_id, subject, incorrect_count, total_count, accuracy_pct)
+  VALUES (
+    p_user_id,
+    p_subject,
+    p_incorrect,
+    p_total,
+    ROUND((GREATEST(0, p_total - p_incorrect)::NUMERIC / NULLIF(p_total, 0)) * 100, 2)
+  )
+  ON CONFLICT (user_id, subject) DO UPDATE SET
+    incorrect_count = weak_areas.incorrect_count + EXCLUDED.incorrect_count,
+    total_count     = weak_areas.total_count     + EXCLUDED.total_count,
+    accuracy_pct    = ROUND((GREATEST(0, (weak_areas.total_count + EXCLUDED.total_count - 
+                              weak_areas.incorrect_count - EXCLUDED.incorrect_count))::NUMERIC /
+                             NULLIF(weak_areas.total_count + EXCLUDED.total_count, 0)) * 100, 2),
+    last_updated    = NOW();
+END; $$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 13. Optimized Indexes for Query Performance
+-- ─────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_english_exam_diff ON public.english_mcqs(exam_type, difficulty) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_ps_exam_diff ON public.pakistan_studies_mcqs(exam_type, difficulty) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_gk_exam_diff ON public.general_knowledge_mcqs(exam_type, difficulty) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_cs_exam_diff ON public.computer_science_mcqs(exam_type, difficulty) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_math_exam_diff ON public.mathematics_mcqs(exam_type, difficulty) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_islamiat_exam_diff ON public.islamiat_mcqs(exam_type, difficulty) WHERE is_public = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_vocab_cat_pub ON public.vocab_words(category, is_public);
+
+-- ─────────────────────────────────────────────────────────────
 -- Done! Verify tables were created:
 -- SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
--- Expected: attempt_answers, computer_science_mcqs, daily_streaks, english_mcqs,
+-- Expected: computer_science_mcqs, daily_streaks, english_mcqs,
 --           general_knowledge_mcqs, islamiat_mcqs, mathematics_mcqs, note_topics,
 --           pakistan_studies_mcqs, quiz_attempts, user_profiles, user_vocab_bookmarks,
 --           vocab_words, weak_areas
