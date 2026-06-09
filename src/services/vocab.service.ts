@@ -7,7 +7,7 @@ export const VocabService = {
     try {
       const { data, error } = await supabase
         .from('vocab_words')
-        .select('*')
+        .select('id, word, meaning, urdu_meaning, synonyms, antonyms, example, category')
         .eq('is_public', true);
 
       if (error) throw error;

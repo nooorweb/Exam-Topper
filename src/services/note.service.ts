@@ -7,7 +7,7 @@ export const NoteService = {
     try {
       const { data, error } = await supabase
         .from('note_topics')
-        .select('*')
+        .select('id, subject, title, overview, content, key_points, formulas, tables_data, importance, estimated_read_time, exam_targets')
         .eq('is_public', true);
 
       if (error) throw error;

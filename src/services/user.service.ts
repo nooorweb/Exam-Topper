@@ -22,7 +22,7 @@ export const UserService = {
   getProfile: async (userId: string): Promise<UserProfile | null> => {
     const { data } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('id, display_name, avatar_url, onboarding_done, selected_subjects, exam_target, daily_goal_minutes, total_questions_answered, correct_answers_count, current_streak, longest_streak, last_active_date, created_at, updated_at')
       .eq('id', userId)
       .single();
     return data as UserProfile | null;
