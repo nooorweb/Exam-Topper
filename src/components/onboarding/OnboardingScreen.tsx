@@ -366,6 +366,16 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                 </Text>
               </View>
 
+              {/* Inspirational Quote Card */}
+              <View style={[styles.quoteCard, { backgroundColor: isDark ? 'rgba(99,102,241,0.05)' : '#ffffff', borderColor: colors.border }]}>
+                <Text style={[styles.quoteText, { color: colors.text }]}>
+                  "With faith, discipline and selfless devotion to duty, there is nothing worthwhile that you cannot achieve."
+                </Text>
+                <Text style={[styles.quoteAuthor, { color: colors.primary }]}>
+                  — Quaid-e-Azam Muhammad Ali Jinnah
+                </Text>
+              </View>
+
               {/* Feature pills */}
               <View style={styles.featurePills}>
                 {[
@@ -738,6 +748,33 @@ const styles = StyleSheet.create({
   welcomeTag: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
   welcomeTitle: { fontSize: 28, fontWeight: '900', textAlign: 'center', lineHeight: 36, letterSpacing: -0.5 },
   welcomeSub: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  quoteCard: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    width: '100%',
+    alignItems: 'center',
+    marginVertical: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  quoteText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  quoteAuthor: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   featurePills: { flexDirection: 'row', gap: 8 },
   featurePill: {
     flexDirection: 'row',

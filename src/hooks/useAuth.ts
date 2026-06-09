@@ -19,12 +19,17 @@ export const useAuth = () => {
     checkLocalOnboarding();
   }, [user, profile]);
 
+  const handleRefresh = async () => {
+    await checkLocalOnboarding();
+    await refreshProfile();
+  };
+
   return {
     user,
     session: null, // session not used by layout, safe to return null
     profile,
     loading,
     needsOnboarding: !localOnboardingDone && (!user || (profile !== null && !profile.onboarding_done)),
-    refreshProfile,
+    refreshProfile: handleRefresh,
   };
 };
