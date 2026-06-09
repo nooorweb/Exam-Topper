@@ -10,9 +10,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, Card, Badge } from '../../src/components/common';
 import { useApp } from '../../src/context/AppContext';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Play, Award, ShieldAlert, Sparkles, Brain } from 'lucide-react-native';
-import AIQuizModal from '../../src/components/quiz/AIQuizModal';
 
 const getRemainingAIQuizzes = async () => {
   try {
