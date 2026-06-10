@@ -39,6 +39,7 @@ const EXAM_FOCUSES = [
   { key: 'FIA Inspector', label: 'FIA Inspector & Federal Jobs', sub: 'Federal Investigation Agency', icon: Shield },
   { key: 'CSS Descriptive', label: 'CSS (Central Superior Services)', sub: 'Federal Public Service Commission', icon: Gavel },
   { key: 'All Punjab/Sindh Boards', label: 'PMS (Provincial Management)', sub: 'Provincial Commissions & Boards', icon: Landmark },
+  { key: 'General', label: 'General / All-in-One Prep', sub: 'Practice all boards (NTS, OTS, PTS, etc.) with no filters', icon: Sparkles },
 ];
 
 export default function SettingsScreen() {
