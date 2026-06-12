@@ -1,16 +1,41 @@
 {
   "expo": {
-    "name": "Exam Topper",
+    "name": "Exam Topper - ETEA, KPPSC & FIA Prep",
     "slug": "exam-topper",
     "version": "1.0.0",
+    "description": "Master competitive exams like ETEA, KPPSC, FIA, and Clerical tests. Study notes, advanced shortcut keys, high-frequency vocabulary, and custom practice quizzes.",
+    "primaryColor": "#6366f1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.noor.smartprepmcqs"
+      "bundleIdentifier": "com.noor.smartprepmcqs",
+      "associatedDomains": [
+        "applinks:smartprepmcqs.com"
+      ]
     },
     "android": {
-      "package": "com.noor.smartprepmcqs"
+      "package": "com.noor.smartprepmcqs",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https",
+              "host": "smartprepmcqs.com",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -21,7 +46,7 @@
     "scheme": "smartprepmcqs",
     "extra": {
       "router": {
-        "origin": false
+        "origin": "https://smartprepmcqs.com"
       },
       "eas": {
         "projectId": "18c13ae4-1f19-4c31-b8ec-30d014248e45"
