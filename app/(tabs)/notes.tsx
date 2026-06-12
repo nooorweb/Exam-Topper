@@ -12,7 +12,7 @@ import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NoteTopic, SubjectNotebook } from '../../src/data/notesData';
 import { useApp } from '../../src/context/AppContext';
-import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect, Router } from 'expo-router';
 import {
   BookOpen,
   Calculator,
@@ -34,6 +34,7 @@ import {
   Brain,
   Lightbulb,
 } from 'lucide-react-native';
+import { launchNoteQuiz } from '../../src/utils/noteQuizLauncher';
 
 export default function NotesScreen() {
   const { currentTheme, subjectNotebooks } = useApp();
@@ -360,6 +361,7 @@ export default function NotesScreen() {
                         toggleLineItem={toggleLineItem}
                         colors={colors}
                         isDark={isDark}
+                        router={router}
                       />
                     </View>
                   )}
@@ -604,6 +606,7 @@ export default function NotesScreen() {
                             toggleLineItem={toggleLineItem}
                             colors={colors}
                             isDark={isDark}
+                            router={router}
                           />
                         </View>
                       )}
@@ -629,6 +632,7 @@ function TopicDetails({
   toggleLineItem,
   colors,
   isDark,
+  router: routerProp,
 }: {
   topic: NoteTopic;
   subject: string;
@@ -638,6 +642,7 @@ function TopicDetails({
   toggleLineItem: (key: string) => void;
   colors: any;
   isDark: boolean;
+  router: Router;
 }) {
   const [readingMode, setReadingMode] = useState<'read' | 'test'>('read');
 
@@ -913,14 +918,18 @@ function TopicDetails({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => {
-            router.push({
-              pathname: '/quiz-session',
-              params: { category: subject, limit: 10, difficulty: 'All' },
-            });
+          onPress={async () => {
+            const result = await launchNoteQuiz(topic.id, topic.title, routerProp, subject);
+            if (result === 'no_mcqs') {
+              // Fallback: generic subject quiz when no note-specific MCQs exist
+              routerProp.push({
+                pathname: '/quiz-session',
+                params: { category: subject, limit: 10, difficulty: 'All' },
+              });
+            }
           }}
           accessibilityRole="button"
-          accessibilityLabel={`Start practice quiz for ${subject}`}
+          accessibilityLabel={`Start practice quiz for ${topic.title}`}
           style={[styles.btnStartTest, { backgroundColor: colors.primary }]}
         >
           <Play size={12} color="#fff" fill="#fff" />

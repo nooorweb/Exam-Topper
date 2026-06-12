@@ -126,6 +126,38 @@ export const MCQService = {
     }
   },
 
+  /**
+   * Fetch MCQs linked to a specific note topic from the note_topic_mcqs table.
+   * Returns questions ordered by sort_order (stable, deterministic order).
+   * The caller (noteQuizLauncher) applies rotation on top of this fixed order.
+   */
+  fetchNoteTopicMCQs: async (noteTopicId: string): Promise<MCQ[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('note_topic_mcqs')
+        .select('id, question, options, correct_answer, explanation, category, sort_order')
+        .eq('note_topic_id', noteTopicId)
+        .eq('is_public', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        return data.map((row) => ({
+          id: row.id,
+          question: row.question,
+          options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
+          correctAnswer: row.correct_answer,
+          explanation: row.explanation ?? '',
+          category: row.category as MCQ['category'],
+        }));
+      }
+    } catch (error) {
+      console.warn(`MCQService: Failed to fetch note MCQs for ${noteTopicId}`, error);
+    }
+    return [];
+  },
+
   /** Fetch all public MCQs across all subjects from Supabase */
   fetchAllMCQs: async (): Promise<MCQ[]> => {
     const subjects = Object.keys(SUBJECT_TABLE_MAP);
