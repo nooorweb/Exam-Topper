@@ -30,16 +30,21 @@ import {
   FlaskConical,
   Mail,
   Lock,
+  BookOpen,
+  Briefcase,
+  Monitor,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { Card, SectionHeader, ToggleRow, Button, Badge, Text, Input } from '../src/components/common';
 
 const EXAM_FOCUSES = [
-  { key: 'KPPSC & ETEA', label: 'ETEA Medical & Engineering', sub: 'Khyber Pakhtunkhwa Boards', icon: FlaskConical },
-  { key: 'FIA Inspector', label: 'FIA Inspector & Federal Jobs', sub: 'Federal Investigation Agency', icon: Shield },
-  { key: 'CSS Descriptive', label: 'CSS (Central Superior Services)', sub: 'Federal Public Service Commission', icon: Gavel },
-  { key: 'All Punjab/Sindh Boards', label: 'PMS (Provincial Management)', sub: 'Provincial Commissions & Boards', icon: Landmark },
-  { key: 'General', label: 'General / All-in-One Prep', sub: 'Practice all boards (NTS, OTS, PTS, etc.) with no filters', icon: Sparkles },
+  { key: 'Teaching', label: 'Teaching / SST / PST', sub: 'Subject Specialist, Primary Teacher', icon: BookOpen },
+  { key: 'Computer Operator', label: 'Computer Operator', sub: 'Data Entry, IT Assistant, NTS', icon: Monitor },
+  { key: 'KPPSC', label: 'KPPSC Officer', sub: 'Tehsildar, Patwari, Naib Tehsildar', icon: Briefcase },
+  { key: 'Police', label: 'Police / ASI / Sub-Inspector', sub: 'KP Police, FIA, Anti-Corruption', icon: Shield },
+  { key: 'CSS', label: 'CSS / PMS', sub: 'Central Superior Services, Provincial', icon: GraduationCap },
+  { key: 'ETEA', label: 'ETEA Admission', sub: 'Medical, Engineering, BBA, BCS', icon: GraduationCap },
+  { key: 'General', label: 'General Competitive', sub: 'Mixed boards, NTS, OTS, PTS', icon: Sparkles },
 ];
 
 export default function SettingsScreen() {
@@ -55,11 +60,14 @@ export default function SettingsScreen() {
     signUp,
     signOut,
     refreshProfile,
+    examFocus,
+    setExamFocus,
+    examSubFocus,
+    setExamSubFocus,
   } = useApp();
 
   const isDark = currentTheme === 'dark';
 
-  const [examFocus, setExamFocus] = useState('KPPSC & ETEA');
   const [pushEnabled, setPushEnabled] = useState(false);
 
   // Auth local states
@@ -86,8 +94,6 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const focus = await AsyncStorage.getItem('smart_prep_focus');
-      if (focus) setExamFocus(focus);
       const push = await AsyncStorage.getItem('smart_prep_push');
       setPushEnabled(push === 'true');
     };
@@ -95,8 +101,14 @@ export default function SettingsScreen() {
   }, []);
 
   const handleExamFocusSelect = async (key: string) => {
-    setExamFocus(key);
-    await AsyncStorage.setItem('smart_prep_focus', key);
+    await setExamFocus(key);
+    if (key !== 'ETEA') {
+      await setExamSubFocus('General');
+    }
+  };
+
+  const handleExamSubFocusSelect = async (subKey: string) => {
+    await setExamSubFocus(subKey);
   };
 
   const handlePushToggle = async () => {
@@ -354,6 +366,44 @@ export default function SettingsScreen() {
               );
             })}
           </View>
+
+          {examFocus === 'ETEA' && (
+            <View style={{ marginTop: 16, padding: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : '#f9fafb', borderRadius: 12, borderWidth: 0.5, borderColor: colors.border }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text, marginBottom: 4 }}>Select ETEA Admission Subcategory</Text>
+              <Text style={{ fontSize: 10, color: colors.textMuted, marginBottom: 10 }}>Choose your specific academic focus to get tailored subjects.</Text>
+              <View style={{ gap: 6 }}>
+                {[
+                  { key: 'Computer Science', label: 'Computer Science / BCS' },
+                  { key: 'Engineering', label: 'Engineering (FSc Pre-Engineering)' },
+                  { key: 'Medical', label: 'Medical (FSc Pre-Medical)' },
+                  { key: 'General', label: 'General / BBA' },
+                ].map((sub) => {
+                  const subSelected = examSubFocus === sub.key;
+                  return (
+                    <TouchableOpacity
+                      key={sub.key}
+                      onPress={() => handleExamSubFocusSelect(sub.key)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        borderWidth: 0.5,
+                        borderColor: subSelected ? colors.primary : colors.border,
+                        backgroundColor: subSelected ? 'rgba(124, 111, 240, 0.1)' : (isDark ? '#121214' : '#ffffff'),
+                        minHeight: 40,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: subSelected ? '#c6bfff' : colors.text }}>{sub.label}</Text>
+                      {subSelected && <CheckCircle size={14} color={colors.primary} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </Card>
 
         {/* ── DISPLAY THEME ── */}

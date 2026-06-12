@@ -151,7 +151,7 @@ interface OnboardingScreenProps {
 type Step = 0 | 1 | 2;
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
-  const { currentTheme, user, profile, signIn, signUp, signInWithGoogle } = useApp();
+  const { currentTheme, user, profile, signIn, signUp, signInWithGoogle, setExamSubFocus } = useApp();
   const isDark = currentTheme === 'dark';
   const { width } = useWindowDimensions();
 
@@ -161,6 +161,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   const [step, setStep] = useState<Step>(0);
   const [selectedJob, setSelectedJob] = useState('General');
+  const [selectedSubFocus, setSelectedSubFocus] = useState('General');
   const [dailyGoal, setDailyGoal] = useState(20);
   const [saving, setSaving] = useState(false);
 
@@ -258,14 +259,20 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       
       if (!skipCustomization) {
         await AsyncStorage.setItem('smart_prep_focus', selectedJob);
+        if (selectedJob === 'ETEA') {
+          await setExamSubFocus(selectedSubFocus);
+        } else {
+          await setExamSubFocus('General');
+        }
       } else {
         await AsyncStorage.setItem('smart_prep_focus', 'General');
+        await setExamSubFocus('General');
       }
 
       if (user) {
         await UserService.completeOnboarding(user.id, {
-          selectedSubjects: skipCustomization ? [] : [selectedJob],
-          examTarget: skipCustomization ? 'General' : selectedJob,
+          selectedSubjects: skipCustomization ? [] : (selectedJob === 'ETEA' ? [selectedJob, selectedSubFocus] : [selectedJob]),
+          examTarget: skipCustomization ? 'General' : (selectedJob === 'ETEA' ? `${selectedJob} - ${selectedSubFocus}` : selectedJob),
           dailyGoalMinutes: skipCustomization ? 20 : dailyGoal,
         });
       }
@@ -590,6 +597,43 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           );
         })}
       </View>
+
+      {selectedJob === 'ETEA' && (
+        <View style={{ marginTop: 24, padding: 16, backgroundColor: isDark ? 'rgba(99,102,241,0.05)' : '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.border }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 }}>Select ETEA Admission Subcategory</Text>
+          <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 12 }}>Choose your specific academic focus to get tailored subjects.</Text>
+          <View style={{ gap: 8 }}>
+            {[
+              { key: 'Computer Science', label: 'Computer Science / BCS' },
+              { key: 'Engineering', label: 'Engineering (FSc Pre-Engineering)' },
+              { key: 'Medical', label: 'Medical (FSc Pre-Medical)' },
+              { key: 'General', label: 'General / BBA' },
+            ].map((sub) => {
+              const subSelected = selectedSubFocus === sub.key;
+              return (
+                <TouchableOpacity
+                  key={sub.key}
+                  onPress={() => setSelectedSubFocus(sub.key)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: subSelected ? colors.primary : colors.border,
+                    backgroundColor: subSelected ? (isDark ? 'rgba(99,102,241,0.15)' : '#e0e7ff') : (isDark ? '#121214' : '#f9fafb'),
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: subSelected ? colors.primary : colors.text }}>{sub.label}</Text>
+                  {subSelected && <CheckCircle size={16} color={colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
     </Animated.View>
   );
 

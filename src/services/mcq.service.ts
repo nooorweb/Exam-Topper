@@ -37,6 +37,33 @@ export const MCQService = {
         return [...cached].sort(() => 0.5 - Math.random()).slice(0, limit);
       }
 
+      // Special handling for Shortcut Keys which are note-linked in the note_topic_mcqs table
+      if (subject === 'Shortcut Keys') {
+        const { data, error } = await supabase
+          .from('note_topic_mcqs')
+          .select('id, question, options, correct_answer, explanation, category')
+          .in('note_topic_id', ['cs-note-shortcut-word', 'cs-note-shortcut-excel', 'cs-note-shortcut-ppt'])
+          .eq('is_public', true);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const mcqs: MCQ[] = data.map((row) => ({
+            id: row.id,
+            question: row.question,
+            options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
+            correctAnswer: row.correct_answer,
+            explanation: row.explanation ?? '',
+            category: 'Shortcut Keys' as any,
+          }));
+
+          await CacheService.setSubjectMCQs(subject, normalizedDifficulty, mcqs);
+
+          return [...mcqs].sort(() => 0.5 - Math.random()).slice(0, limit);
+        }
+        return [];
+      }
+
       // 2. Query corresponding table in Supabase
       const tableName = getTableName(subject);
       
@@ -71,10 +98,20 @@ export const MCQService = {
           isRepeated: row.is_repeated ?? false,
         }));
 
-        // Update local cache
-        await CacheService.setSubjectMCQs(subject, normalizedDifficulty, mcqs);
+        const uniqueMCQs: MCQ[] = [];
+        const seen = new Set<string>();
+        for (const mcq of mcqs) {
+          const normalizedQuestion = mcq.question.trim().toLowerCase();
+          if (!seen.has(normalizedQuestion)) {
+            seen.add(normalizedQuestion);
+            uniqueMCQs.push(mcq);
+          }
+        }
 
-        return [...mcqs].sort(() => 0.5 - Math.random()).slice(0, limit);
+        // Update local cache
+        await CacheService.setSubjectMCQs(subject, normalizedDifficulty, uniqueMCQs);
+
+        return [...uniqueMCQs].sort(() => 0.5 - Math.random()).slice(0, limit);
       }
     } catch (error) {
       console.warn(`MCQService: Failed to fetch from Supabase. Falling back to local/default.`, error);
@@ -143,7 +180,7 @@ export const MCQService = {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        return data.map((row) => ({
+        const mcqs = data.map((row) => ({
           id: row.id,
           question: row.question,
           options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
@@ -151,6 +188,18 @@ export const MCQService = {
           explanation: row.explanation ?? '',
           category: row.category as MCQ['category'],
         }));
+
+        const uniqueMCQs: MCQ[] = [];
+        const seen = new Set<string>();
+        for (const mcq of mcqs) {
+          const normalizedQuestion = mcq.question.trim().toLowerCase();
+          if (!seen.has(normalizedQuestion)) {
+            seen.add(normalizedQuestion);
+            uniqueMCQs.push(mcq);
+          }
+        }
+
+        return uniqueMCQs;
       }
     } catch (error) {
       console.warn(`MCQService: Failed to fetch note MCQs for ${noteTopicId}`, error);
@@ -185,7 +234,21 @@ export const MCQService = {
         }));
       });
       const results = await Promise.all(promises);
-      return results.flat();
+      const allMCQs = results.flat();
+      
+      // Deduplicate by question text
+      const seen = new Set<string>();
+      const uniqueMCQs: MCQ[] = [];
+      
+      for (const mcq of allMCQs) {
+        const normalizedQuestion = mcq.question.trim().toLowerCase();
+        if (!seen.has(normalizedQuestion)) {
+          seen.add(normalizedQuestion);
+          uniqueMCQs.push(mcq);
+        }
+      }
+      
+      return uniqueMCQs;
     } catch (error) {
       console.warn("MCQService: Failed to fetch all MCQs from database", error);
       return [];

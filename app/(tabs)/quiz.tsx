@@ -35,6 +35,7 @@ export default function QuizSetupScreen() {
     'Pakistan Studies',
     'Computer Science',
     'Mathematics',
+    'Shortcut Keys',
   ];
 
   const questionLimits = [15, 30, 40];

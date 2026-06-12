@@ -47,6 +47,10 @@ interface AppContextProps {
   autoDownloadWallpaper: boolean;
   setAutoDownloadWallpaper: (val: boolean) => void;
   daySeed: number;
+  examFocus: string;
+  setExamFocus: (focus: string) => Promise<void>;
+  examSubFocus: string;
+  setExamSubFocus: (subFocus: string) => Promise<void>;
   // Supabase Auth extension
   user: any;
   profile: UserProfile | null;
@@ -71,6 +75,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [examFocus, setExamFocusState] = useState<string>('General');
+  const [examSubFocus, setExamSubFocusState] = useState<string>('General');
+
+  const setExamFocus = async (focus: string) => {
+    setExamFocusState(focus);
+    await AsyncStorage.setItem('smart_prep_focus', focus);
+  };
+
+  const setExamSubFocus = async (subFocus: string) => {
+    setExamSubFocusState(subFocus);
+    await AsyncStorage.setItem('smart_prep_sub_focus', subFocus);
+  };
 
   const [stats, setStats] = useState<UserStats>({
     streak: 0,
@@ -212,6 +228,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         iconName: 'Cpu',
         description: 'Review core concepts in database management systems, data structures, and OSI networking models.',
       },
+      'Shortcut Keys': {
+        iconName: 'Cpu',
+        description: 'Master advanced MS Word, MS Excel, and MS PowerPoint keyboard shortcuts.',
+      },
       'Islamiat': {
         iconName: 'BookOpen',
         description: 'Islamic history, pillars of Islam, Quranic revelations, and life of Prophet Muhammad (PBUH) tested in competitive exams.',
@@ -221,6 +241,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return SUBJECT_ORDER.map((subject) => {
       const details = SUBJECT_DETAILS[subject];
       const topics = noteTopics.filter((t) => t.subject === subject);
+
       return {
         subject,
         iconName: details.iconName,
@@ -251,6 +272,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Auto Download Setting
         const autoDownloadStr = await AsyncStorage.getItem('smart_prep_auto_download_wp');
         setAutoDownloadWallpaper(autoDownloadStr === 'true');
+
+        // Load exam focus
+        const storedFocus = await AsyncStorage.getItem('smart_prep_focus');
+        if (storedFocus) {
+          setExamFocusState(storedFocus);
+        }
+
+        const storedSubFocus = await AsyncStorage.getItem('smart_prep_sub_focus');
+        if (storedSubFocus) {
+          setExamSubFocusState(storedSubFocus);
+        }
 
         // MCQs loading
         const storedMcqs = await AsyncStorage.getItem('smart_prep_mcqs');
@@ -708,6 +740,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         autoDownloadWallpaper,
         setAutoDownloadWallpaper: handleSetAutoDownloadWallpaper,
         daySeed,
+        examFocus,
+        setExamFocus,
+        examSubFocus,
+        setExamSubFocus,
         // Auth
         user,
         profile,

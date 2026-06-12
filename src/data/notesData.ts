@@ -5,7 +5,7 @@
 
 export interface NoteTopic {
   id: string;
-  subject: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics' | 'Islamiat';
+  subject: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics' | 'Islamiat' | 'Shortcut Keys';
   title: string;
   overview: string;
   content: string;
@@ -18,7 +18,7 @@ export interface NoteTopic {
 }
 
 export interface SubjectNotebook {
-  subject: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics' | 'Islamiat';
+  subject: 'English' | 'General Knowledge' | 'Pakistan Studies' | 'Computer Science' | 'Mathematics' | 'Islamiat' | 'Shortcut Keys';
   iconName: string;
   description: string;
   topics: NoteTopic[];

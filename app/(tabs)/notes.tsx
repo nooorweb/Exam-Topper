@@ -37,7 +37,7 @@ import {
 import { launchNoteQuiz } from '../../src/utils/noteQuizLauncher';
 
 export default function NotesScreen() {
-  const { currentTheme, subjectNotebooks } = useApp();
+  const { currentTheme, subjectNotebooks, examFocus } = useApp();
   const isDark = currentTheme === 'dark';
   const SUBJECT_NOTEBOOKS = subjectNotebooks;
 
@@ -50,9 +50,6 @@ export default function NotesScreen() {
   const [checkedPoints, setCheckedPoints] = useState<Record<string, boolean>>({});
 
   // Personalization exam focus states
-  const [examFocus, setExamFocus] = useState<string>('General');
-  const [filterEnabled, setFilterEnabled] = useState<boolean>(true);
-
   const colors = {
     bg: isDark ? '#09090b' : '#f9fafb',
     card: isDark ? '#121214' : '#ffffff',
@@ -97,10 +94,7 @@ export default function NotesScreen() {
           if (savedChecked && isMounted) {
             setCheckedPoints(JSON.parse(savedChecked));
           }
-          const savedFocus = await AsyncStorage.getItem('smart_prep_focus');
-          if (savedFocus && isMounted) {
-            setExamFocus(savedFocus || 'General');
-          }
+
         } catch (_) {}
       };
       loadData();
@@ -111,14 +105,17 @@ export default function NotesScreen() {
   );
 
   const params = useLocalSearchParams();
+  const focusTopicId = params?.focusTopicId;
+  const focusSubject = params?.subject;
+
   useEffect(() => {
-    if (params?.focusTopicId) {
-      setSelectedTopicId(params.focusTopicId as string);
-      if (params?.subject) {
-        setActiveSubject(params.subject as any);
+    if (focusTopicId) {
+      setSelectedTopicId(focusTopicId as string);
+      if (focusSubject) {
+        setActiveSubject(focusSubject as any);
       }
     }
-  }, [params]);
+  }, [focusTopicId, focusSubject]);
 
   // Save completed notes progress
   const saveCompletedProgress = async (updated: string[]) => {
@@ -164,28 +161,14 @@ export default function NotesScreen() {
 
   const filteredTopics = useMemo(() => {
     if (!activeNotebook) return [];
-    if (!filterEnabled || examFocus === 'General') {
-      return activeNotebook.topics;
-    }
-    return activeNotebook.topics.filter(topic => 
-      !topic.examTargets || topic.examTargets.includes(examFocus)
-    );
-  }, [activeNotebook, filterEnabled, examFocus]);
+    return activeNotebook.topics;
+  }, [activeNotebook]);
 
   const searchedTopics = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const results: { subject: SubjectNotebook['subject']; topic: NoteTopic }[] = [];
     SUBJECT_NOTEBOOKS.forEach((n) => {
       n.topics.forEach((t) => {
-        // Also apply target exam filter in search if filter is enabled
-        const matchesFocus =
-          !filterEnabled ||
-          examFocus === 'General' ||
-          !t.examTargets ||
-          t.examTargets.includes(examFocus);
-
-        if (!matchesFocus) return;
-
         const matchesQuery =
           t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           t.overview.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -198,7 +181,7 @@ export default function NotesScreen() {
       });
     });
     return results;
-  }, [searchQuery, filterEnabled, examFocus, SUBJECT_NOTEBOOKS]);
+  }, [searchQuery, SUBJECT_NOTEBOOKS]);
 
   const getSubjectIcon = (sub: SubjectNotebook['subject'], color: string, size: number = 18) => {
     switch (sub) {
@@ -422,55 +405,6 @@ export default function NotesScreen() {
             </View>
           )}
 
-          {/* Exam Filter Toggle Pill Bar */}
-          {activeNotebook && examFocus && examFocus !== 'General' && (
-            <TouchableOpacity
-              onPress={() => setFilterEnabled(!filterEnabled)}
-              activeOpacity={0.8}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: filterEnabled }}
-              accessibilityLabel={`Filter for ${examFocus} topics`}
-              style={[
-                {
-                  backgroundColor: filterEnabled ? colors.primary + '15' : colors.card,
-                  borderColor: filterEnabled ? colors.primary : colors.border,
-                  borderWidth: 1.5,
-                  borderRadius: 12,
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 16,
-                }
-              ]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{
-                  padding: 4,
-                  backgroundColor: filterEnabled ? colors.primary : (isDark ? '#27272a' : '#e5e7eb'),
-                  borderRadius: 6,
-                }}>
-                  <Check size={12} color={filterEnabled ? '#fff' : colors.textMuted} />
-                </View>
-                <Text style={{
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: filterEnabled ? colors.primary : colors.text,
-                }}>
-                  Filter: {examFocus} Topics Only
-                </Text>
-              </View>
-              <Text style={{
-                fontSize: 11,
-                fontWeight: '600',
-                color: filterEnabled ? colors.primary : colors.textMuted,
-              }}>
-                {filterEnabled ? 'Enabled' : 'Disabled'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
           {/* Topics Accordion Stack - Enhanced */}
           {activeNotebook && (
             <View style={styles.topicsStack}>
@@ -482,27 +416,13 @@ export default function NotesScreen() {
               </View>
               {filteredTopics.length === 0 ? (
                 <View style={[styles.emptySearchCard, dynamicStyles.card, { marginTop: 12 }]}>
-                  <Target size={32} color={colors.warning} opacity={0.6} />
+                  <BookOpen size={32} color={colors.textMuted} opacity={0.6} />
                   <Text style={[styles.emptySearchTitle, dynamicStyles.text, { fontSize: 16, textAlign: 'center' }]}>
-                    No topics for {examFocus}
+                    No topics found
                   </Text>
                   <Text style={[styles.emptySearchSub, dynamicStyles.textMuted, { fontSize: 13, textAlign: 'center' }]}>
-                    This subject doesn't contain any topics tagged for your target exam: {examFocus}.
+                    This subject doesn't contain any topics yet.
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => setFilterEnabled(false)}
-                    style={{
-                      backgroundColor: colors.primary,
-                      paddingHorizontal: 16,
-                      paddingVertical: 10,
-                      borderRadius: 10,
-                      marginTop: 8,
-                    }}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
-                      Show All {activeSubject} Topics
-                    </Text>
-                  </TouchableOpacity>
                 </View>
               ) : (
                 filteredTopics.map((topic) => {
