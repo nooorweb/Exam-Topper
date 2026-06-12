@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { MCQ } from '../types';
 import { CacheService } from './cache.service';
 import { DEFAULT_MCQS } from '../data/defaultData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SUBJECT_TABLE_MAP: Record<string, string> = {
   'English': 'english_mcqs',
@@ -32,7 +33,7 @@ export const MCQService = {
       
       // 1. Try local cache first
       const cached = await CacheService.getSubjectMCQs(subject, normalizedDifficulty);
-      if (cached && cached.length >= limit) {
+      if (cached && cached.length > 0) {
         // Shuffle and return requested slice
         return [...cached].sort(() => 0.5 - Math.random()).slice(0, limit);
       }
@@ -117,7 +118,26 @@ export const MCQService = {
       console.warn(`MCQService: Failed to fetch from Supabase. Falling back to local/default.`, error);
     }
 
-    // 3. Fallback: Filter from DEFAULT_MCQS in memory
+    // 3. Fallback: Try reading from AsyncStorage's smart_prep_mcqs first
+    try {
+      const stored = await AsyncStorage.getItem('smart_prep_mcqs');
+      if (stored) {
+        const parsed: MCQ[] = JSON.parse(stored);
+        let fallbackPool = parsed.filter(m => m.category === subject);
+        if (fallbackPool.length > 0) {
+          if (difficulty !== 'All') {
+            const targetDiff = difficulty.toLowerCase();
+            const filtered = fallbackPool.filter(m => (m.importance || 'medium') === targetDiff);
+            if (filtered.length > 0) fallbackPool = filtered;
+          }
+          return fallbackPool.sort(() => 0.5 - Math.random()).slice(0, limit);
+        }
+      }
+    } catch (e) {
+      console.warn("MCQService: Failed to load fallback from AsyncStorage", e);
+    }
+
+    // Last resort fallback
     let fallbackPool = DEFAULT_MCQS.filter(m => m.category === subject);
     if (difficulty !== 'All') {
       const targetDiff = difficulty.toLowerCase();
@@ -210,8 +230,11 @@ export const MCQService = {
   /** Fetch all public MCQs across all subjects from Supabase */
   fetchAllMCQs: async (): Promise<MCQ[]> => {
     const subjects = Object.keys(SUBJECT_TABLE_MAP);
-    try {
-      const promises = subjects.map(async (subject) => {
+    let allMCQs: MCQ[] = [];
+
+    // Query subject tables resiliently
+    for (const subject of subjects) {
+      try {
         const tableName = SUBJECT_TABLE_MAP[subject];
         const { data, error } = await supabase
           .from(tableName)
@@ -219,67 +242,70 @@ export const MCQService = {
           .eq('is_public', true);
         
         if (error) throw error;
-        
-        return (data || []).map((row) => ({
-          id: row.id,
-          question: row.question,
-          options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
-          correctAnswer: row.correct_answer,
-          explanation: row.explanation ?? '',
-          category: subject as MCQ['category'],
-          subcategory: row.subcategory ?? undefined,
-          examType: row.exam_type ?? undefined,
-          importance: row.importance ?? undefined,
-          isRepeated: row.is_repeated ?? false,
-        }));
-      });
-      const results = await Promise.all(promises);
-      let allMCQs = results.flat();
 
-      try {
-        const { data: noteMcqs, error: noteError } = await supabase
-          .from('note_topic_mcqs')
-          .select('id, question, options, correct_answer, explanation, category, note_topic_id')
-          .eq('is_public', true);
-        
-        if (!noteError && noteMcqs) {
-          const mappedNoteMcqs = noteMcqs.map((row) => {
-            const isShortcut = row.note_topic_id && row.note_topic_id.startsWith('cs-note-shortcut-');
-            return {
-              id: row.id,
-              question: row.question,
-              options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
-              correctAnswer: row.correct_answer,
-              explanation: row.explanation ?? '',
-              category: (isShortcut ? 'Shortcut Keys' : row.category) as MCQ['category'],
-              subcategory: undefined,
-              examType: undefined,
-              importance: undefined,
-              isRepeated: false,
-            };
-          });
-          allMCQs = [...allMCQs, ...mappedNoteMcqs];
+        if (data) {
+          const mapped = data.map((row) => ({
+            id: row.id,
+            question: row.question,
+            options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
+            correctAnswer: row.correct_answer,
+            explanation: row.explanation ?? '',
+            category: subject as MCQ['category'],
+            subcategory: row.subcategory ?? undefined,
+            examType: row.exam_type ?? undefined,
+            importance: row.importance ?? undefined,
+            isRepeated: row.is_repeated ?? false,
+          }));
+          allMCQs = [...allMCQs, ...mapped];
         }
-      } catch (e) {
-        console.warn("MCQService: Failed to fetch note_topic_mcqs in fetchAllMCQs", e);
+      } catch (err) {
+        console.warn(`MCQService: Failed to fetch MCQs for subject ${subject}`, err);
       }
-      
-      // Deduplicate by question text
-      const seen = new Set<string>();
-      const uniqueMCQs: MCQ[] = [];
-      
-      for (const mcq of allMCQs) {
-        const normalizedQuestion = mcq.question.trim().toLowerCase();
-        if (!seen.has(normalizedQuestion)) {
-          seen.add(normalizedQuestion);
-          uniqueMCQs.push(mcq);
-        }
-      }
-      
-      return uniqueMCQs;
-    } catch (error) {
-      console.warn("MCQService: Failed to fetch all MCQs from database", error);
-      return [];
     }
+
+    // Query note_topic_mcqs resiliently
+    try {
+      const { data: noteMcqs, error: noteError } = await supabase
+        .from('note_topic_mcqs')
+        .select('id, question, options, correct_answer, explanation, category, note_topic_id')
+        .eq('is_public', true);
+      
+      if (noteError) throw noteError;
+
+      if (noteMcqs) {
+        const mappedNoteMcqs = noteMcqs.map((row) => {
+          const isShortcut = row.note_topic_id && row.note_topic_id.startsWith('cs-note-shortcut-');
+          return {
+            id: row.id,
+            question: row.question,
+            options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
+            correctAnswer: row.correct_answer,
+            explanation: row.explanation ?? '',
+            category: (isShortcut ? 'Shortcut Keys' : row.category) as MCQ['category'],
+            subcategory: undefined,
+            examType: undefined,
+            importance: undefined,
+            isRepeated: false,
+          };
+        });
+        allMCQs = [...allMCQs, ...mappedNoteMcqs];
+      }
+    } catch (e) {
+      console.warn("MCQService: Failed to fetch note_topic_mcqs in fetchAllMCQs", e);
+    }
+
+    // Deduplicate by question text
+    const seen = new Set<string>();
+    const uniqueMCQs: MCQ[] = [];
+    
+    for (const mcq of allMCQs) {
+      const normalizedQuestion = mcq.question.trim().toLowerCase();
+      if (!seen.has(normalizedQuestion)) {
+        seen.add(normalizedQuestion);
+        uniqueMCQs.push(mcq);
+      }
+    }
+    
+    return uniqueMCQs;
   }
 };

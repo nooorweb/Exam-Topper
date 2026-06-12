@@ -872,6 +872,7 @@ function KnowledgeTest({
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
+  const [isAdvancing, setIsAdvancing] = useState(false);
 
   // Generate simple MCQs from key points
   const questions = topic.keyPoints.slice(0, 3).map((point, i) => ({
@@ -900,6 +901,7 @@ function KnowledgeTest({
           onPress={() => {
             setCurrentIndex(0);
             setAnswers([]);
+            setIsAdvancing(false);
           }}
           style={{
             backgroundColor: colors.primary,
@@ -915,6 +917,20 @@ function KnowledgeTest({
   }
 
   const q = questions[currentIndex];
+
+  const handleOptionSelect = (optionIdx: number) => {
+    if (isAdvancing) return;
+    
+    setIsAdvancing(true);
+    const newAnswers = [...answers];
+    newAnswers[currentIndex] = optionIdx;
+    setAnswers(newAnswers);
+
+    setTimeout(() => {
+      setCurrentIndex(prev => prev + 1);
+      setIsAdvancing(false);
+    }, 650);
+  };
 
   return (
     <View style={{ gap: 16 }}>
@@ -945,11 +961,8 @@ function KnowledgeTest({
           return (
             <TouchableOpacity
               key={i}
-              onPress={() => {
-                const newAnswers = [...answers];
-                newAnswers[currentIndex] = i;
-                setAnswers(newAnswers);
-              }}
+              onPress={() => handleOptionSelect(i)}
+              disabled={isAdvancing}
               style={[
                 {
                   borderRadius: 12,
@@ -997,21 +1010,6 @@ function KnowledgeTest({
           );
         })}
       </View>
-
-      <TouchableOpacity
-        onPress={() => setCurrentIndex(currentIndex + 1)}
-        disabled={answers[currentIndex] === undefined}
-        style={{
-          backgroundColor: answers[currentIndex] !== undefined ? colors.primary : colors.borderAccent,
-          paddingVertical: 12,
-          borderRadius: 10,
-          alignItems: 'center',
-        }}
-      >
-        <Text style={{ color: answers[currentIndex] !== undefined ? '#fff' : colors.textMuted, fontSize: 14, fontWeight: '600' }}>
-          {currentIndex === questions.length - 1 ? 'See Results' : 'Next Question'}
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }
