@@ -234,7 +234,35 @@ export const MCQService = {
         }));
       });
       const results = await Promise.all(promises);
-      const allMCQs = results.flat();
+      let allMCQs = results.flat();
+
+      try {
+        const { data: noteMcqs, error: noteError } = await supabase
+          .from('note_topic_mcqs')
+          .select('id, question, options, correct_answer, explanation, category, note_topic_id')
+          .eq('is_public', true);
+        
+        if (!noteError && noteMcqs) {
+          const mappedNoteMcqs = noteMcqs.map((row) => {
+            const isShortcut = row.note_topic_id && row.note_topic_id.startsWith('cs-note-shortcut-');
+            return {
+              id: row.id,
+              question: row.question,
+              options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options,
+              correctAnswer: row.correct_answer,
+              explanation: row.explanation ?? '',
+              category: (isShortcut ? 'Shortcut Keys' : row.category) as MCQ['category'],
+              subcategory: undefined,
+              examType: undefined,
+              importance: undefined,
+              isRepeated: false,
+            };
+          });
+          allMCQs = [...allMCQs, ...mappedNoteMcqs];
+        }
+      } catch (e) {
+        console.warn("MCQService: Failed to fetch note_topic_mcqs in fetchAllMCQs", e);
+      }
       
       // Deduplicate by question text
       const seen = new Set<string>();
